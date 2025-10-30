@@ -33,10 +33,35 @@
             <span class="telemetry__label">Automation Hours Saved</span>
             <span class="telemetry__value" data-metric="hours">480</span>
           </div>
-          <button id="audio-toggle" class="hud__audio" aria-pressed="false">
-            <span class="hud__audio-label">Sound</span>
-            <span class="hud__audio-indicator" aria-hidden="true"></span>
-          </button>
+          <div class="hud__audio-controls" role="group" aria-label="Audio channels">
+            <button
+              class="hud__audio"
+              data-audio-channel="ambience"
+              type="button"
+              aria-pressed="false"
+            >
+              <span class="hud__audio-label">Ambience</span>
+              <span class="hud__audio-indicator" aria-hidden="true"></span>
+            </button>
+            <button
+              class="hud__audio"
+              data-audio-channel="effects"
+              type="button"
+              aria-pressed="false"
+            >
+              <span class="hud__audio-label">Effects</span>
+              <span class="hud__audio-indicator" aria-hidden="true"></span>
+            </button>
+            <button
+              class="hud__audio"
+              data-audio-channel="voice"
+              type="button"
+              aria-pressed="false"
+            >
+              <span class="hud__audio-label">Voice</span>
+              <span class="hud__audio-indicator" aria-hidden="true"></span>
+            </button>
+          </div>
         </nav>
       </header>
 
@@ -78,13 +103,11 @@
             <p>Navigate live dossiers spanning enterprise threat surfaces. Drag to explore, select to deploy.</p>
           </div>
           <div class="mission-control__layout">
-            <div
-              class="mission-control__orbital"
-              id="mission-orbit"
-              role="list"
-              aria-label="Mission dossiers"
-              tabindex="0"
-            ></div>
+            <div class="mission-control__orbital" id="mission-orbit" tabindex="0" aria-label="Mission dossiers">
+              <canvas id="mission-orbit-canvas" aria-hidden="true"></canvas>
+              <div class="mission-control__overlay" id="mission-orbit-overlay" aria-hidden="true"></div>
+              <div class="mission-control__fallback" id="mission-orbit-fallback" role="list"></div>
+            </div>
             <aside class="mission-control__panel" id="mission-panel">
               <h3>Hover a dossier to preview operations.</h3>
               <p>Each mission reveals Sterling's orchestration, tooling, and measurable outcomes.</p>
@@ -110,7 +133,35 @@
               </header>
               <div class="simulation__body">
                 <div class="incident-map" role="application" aria-label="Incident escalation map">
-                  <div class="incident-map__alerts" aria-live="polite"></div>
+                  <svg
+                    id="incident-map-canvas"
+                    class="incident-map__canvas"
+                    viewBox="0 0 100 100"
+                    role="img"
+                    aria-labelledby="incident-sim-title"
+                  ></svg>
+                  <div class="incident-map__controls">
+                    <button
+                      type="button"
+                      class="chip chip--small incident-map__play"
+                      id="incident-play"
+                      aria-pressed="false"
+                    >
+                      Auto-Play Timeline
+                    </button>
+                    <label class="sr-only" for="incident-scrub">Timeline position</label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="0"
+                      value="0"
+                      step="1"
+                      id="incident-scrub"
+                      class="incident-map__scrub"
+                      aria-label="Incident timeline position"
+                    />
+                  </div>
+                  <div class="incident-map__timeline" id="incident-timeline" aria-live="polite"></div>
                   <div class="incident-map__decision" id="incident-decisions"></div>
                 </div>
                 <div class="decision-panel" id="incident-panel"></div>
@@ -287,6 +338,40 @@
           </div>
         </section>
       </main>
+      <div id="battle-card" class="battle-card" hidden aria-hidden="true">
+        <button
+          class="battle-card__backdrop"
+          type="button"
+          data-battle-card-dismiss
+          aria-label="Dismiss battle card overlay"
+        ></button>
+        <article
+          class="battle-card__panel"
+          id="battle-card-panel"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="battle-card-title"
+        >
+          <header class="battle-card__header">
+            <div class="battle-card__headline">
+              <p class="battle-card__eyebrow">Rapid deployment brief</p>
+              <h2 id="battle-card-title"></h2>
+              <p class="battle-card__subtitle" id="battle-card-subtitle"></p>
+            </div>
+            <dl class="battle-card__meta" id="battle-card-meta"></dl>
+            <button class="battle-card__close" type="button" data-battle-card-dismiss aria-label="Close battle card">
+              <span aria-hidden="true">✕</span>
+            </button>
+          </header>
+          <div class="battle-card__body" id="battle-card-body"></div>
+          <footer class="battle-card__footer">
+            <button class="cta cta--outline" type="button" id="battle-card-download">
+              <span>Download HTML Brief</span>
+            </button>
+            <button class="chip chip--small" type="button" data-battle-card-dismiss>Dismiss</button>
+          </footer>
+        </article>
+      </div>
       <nav class="timeline" id="timeline" aria-label="Experience progression">
         <ol class="timeline__list" id="timeline-list"></ol>
         <div class="timeline__intel" id="timeline-intel" role="status" aria-live="polite"></div>

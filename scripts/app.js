@@ -2,7 +2,8 @@ import {
   missionDossiers,
   timelineSegments,
   incidentDecisionTree,
-  incidentAlerts,
+  incidentAssets,
+  incidentScenes,
   briefingTimeline,
   surfaceNodes,
   loopIntel,
@@ -11,54 +12,42 @@ import {
   impactSignals,
   automationTickets,
   deployCommands,
+  battleCardIntel,
 } from "./data.js";
+import { MissionOrbit } from "./orbit.js";
+import { createAudioManager } from "./audio.js";
+import { clamp } from "./utils.js";
 
 const select = (selector, scope = document) => scope.querySelector(selector);
 const selectAll = (selector, scope = document) => Array.from(scope.querySelectorAll(selector));
 
 const heroCanvas = select("#hero-canvas");
-const audioToggle = select("#audio-toggle");
+const audioButtons = selectAll("[data-audio-channel]");
 const deployOutput = select("#deploy-output");
 const deployInput = select("#deploy-command");
 const deploySubmit = select("#deploy-submit");
 const missionOrbit = select("#mission-orbit");
+const missionOrbitCanvas = select("#mission-orbit-canvas");
+const missionOrbitOverlay = select("#mission-orbit-overlay");
+const missionOrbitFallback = select("#mission-orbit-fallback");
 const missionPanel = select("#mission-panel");
 const missionMetrics = select("#mission-metrics");
 const missionList = select("#mission-list");
 const timelineList = select("#timeline-list");
 const timelineIntel = select("#timeline-intel");
 const cursorEl = select("#cursor");
+const battleCardOverlay = select("#battle-card");
+const battleCardPanel = select("#battle-card-panel");
+const battleCardBody = select("#battle-card-body");
+const battleCardDownload = select("#battle-card-download");
+const battleCardDismissButtons = selectAll("[data-battle-card-dismiss]");
+const battleCardTitle = select("#battle-card-title");
+const battleCardSubtitle = select("#battle-card-subtitle");
+const battleCardMeta = select("#battle-card-meta");
 
-const ambientAudio = (() => {
-  const ctx = new (window.AudioContext || window.webkitAudioContext)();
-  const gain = ctx.createGain();
-  gain.gain.value = 0.15;
-  gain.connect(ctx.destination);
-
-  const oscillators = [110, 220, 440].map((freq, index) => {
-    const osc = ctx.createOscillator();
-    osc.type = "sine";
-    osc.frequency.value = freq;
-    const depth = ctx.createGain();
-    depth.gain.value = 20 * (index + 1);
-    const lfo = ctx.createOscillator();
-    lfo.type = "sine";
-    lfo.frequency.value = 0.02 * (index + 1);
-    lfo.connect(depth);
-    depth.connect(osc.frequency);
-    osc.connect(gain);
-    osc.start();
-    lfo.start();
-    return { osc, lfo };
-  });
-
-  ctx.suspend();
-
-  return {
-    start: () => ctx.resume(),
-    stop: () => ctx.suspend(),
-  };
-})();
+let audioManager;
+let missionOrbitInstance;
+let battleCardPreviouslyFocused;
 
 function initStarfield(canvas) {
   if (!canvas) return;
@@ -154,12 +143,22 @@ function initSmoothScroll() {
 }
 
 function renderMissionControl() {
-  if (!missionOrbit || !missionPanel || !missionMetrics || !missionList) return;
+  if (
+    !missionOrbit ||
+    !missionOrbitCanvas ||
+    !missionOrbitOverlay ||
+    !missionPanel ||
+    !missionMetrics ||
+    !missionList
+  ) {
+    return;
+  }
 
   const panelTitle = missionPanel.querySelector("h3");
   const panelDescription = missionPanel.querySelector("p");
   const panelStatus = missionPanel.querySelector("[data-panel-status]");
-  const defaultHint = panelStatus?.textContent.trim() ||
+  const defaultHint =
+    panelStatus?.textContent.trim() ||
     "Focus the orbit and press space to toggle wireframe schematics. Use arrow keys to adjust rotation speed.";
   const wireframeHint =
     "Wireframe schematics engaged. Press space to restore the full mission overlay.";
@@ -167,9 +166,9 @@ function renderMissionControl() {
   let wireframeEnabled = false;
   let hintTimeout;
 
-  const restoreHint = () => {
+  const restoreHint = (message) => {
     if (!panelStatus) return;
-    panelStatus.textContent = wireframeEnabled ? wireframeHint : defaultHint;
+    panelStatus.textContent = message || (wireframeEnabled ? wireframeHint : defaultHint);
   };
 
   const pulseHint = (message, persist = false) => {
@@ -177,13 +176,12 @@ function renderMissionControl() {
     panelStatus.textContent = message;
     clearTimeout(hintTimeout);
     if (!persist) {
-      hintTimeout = window.setTimeout(restoreHint, 1600);
+      hintTimeout = window.setTimeout(() => restoreHint(), 1600);
     }
   };
 
-  restoreHint();
-
   const updatePanel = (dossier) => {
+    if (!dossier) return;
     panelTitle.textContent = dossier.label;
     panelDescription.textContent = dossier.summary;
     missionMetrics.innerHTML = dossier.metrics
@@ -191,27 +189,8 @@ function renderMissionControl() {
       .join("");
   };
 
-  const nodes = [];
-
-  missionDossiers.forEach((dossier, index) => {
-    const node = document.createElement("button");
-    node.className = "orbital-node";
-    node.type = "button";
-    node.dataset.scroll = dossier.target;
-    node.dataset.index = String(index);
-    node.setAttribute("aria-label", `${dossier.label} dossier`);
-    node.style.setProperty("--orbit-radius", `${dossier.orbit.radius}%`);
-    node.style.setProperty("--orbit-angle", `${dossier.orbit.angle}deg`);
-    node.innerHTML = `
-      <span class="orbital-node__label">${dossier.label}</span>
-      <span class="orbital-node__subtitle">${dossier.subtitle}</span>
-    `;
-    missionOrbit.appendChild(node);
-    nodes.push(node);
-
-    node.addEventListener("mouseenter", () => updatePanel(dossier));
-    node.addEventListener("focus", () => updatePanel(dossier));
-
+  missionList.innerHTML = "";
+  missionDossiers.forEach((dossier) => {
     const listCard = document.createElement("article");
     listCard.className = "dossier";
     listCard.role = "listitem";
@@ -229,43 +208,87 @@ function renderMissionControl() {
         ${dossier.metrics.map((metric) => `<span class="dossier__metric">${metric}</span>`).join("")}
       </footer>
     `;
-    missionList.appendChild(listCard);
-
+    listCard.addEventListener("focus", () => {
+      missionOrbitInstance?.focusDossier(dossier.id);
+      updatePanel(dossier);
+    });
     listCard.addEventListener("keydown", (event) => {
       if (event.key === "Enter" || event.key === " ") {
         event.preventDefault();
         const target = select(dossier.target);
         target?.scrollIntoView({ behavior: "smooth", block: "start" });
+        audioManager?.playVoice("mission");
       }
     });
+    missionList.appendChild(listCard);
   });
 
-  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  let dragging = false;
-  let lastX = 0;
-  let spin = 0;
-  let velocity = reduceMotion ? 0 : 0.05;
+  if (missionOrbitFallback) {
+    missionOrbitFallback.innerHTML = "";
+    missionDossiers.forEach((dossier) => {
+      const button = document.createElement("button");
+      button.className = "orbit-fallback";
+      button.type = "button";
+      button.dataset.dossierId = dossier.id;
+      button.dataset.scroll = dossier.target;
+      button.setAttribute("role", "listitem");
+      button.textContent = dossier.label;
+      missionOrbitFallback.appendChild(button);
+      button.addEventListener("focus", () => {
+        missionOrbitInstance?.focusDossier(dossier.id);
+        updatePanel(dossier);
+      });
+      button.addEventListener("click", () => {
+        const target = select(dossier.target);
+        target?.scrollIntoView({ behavior: "smooth", block: "start" });
+        audioManager?.playVoice("mission");
+      });
+      button.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          const target = select(dossier.target);
+          target?.scrollIntoView({ behavior: "smooth", block: "start" });
+          audioManager?.playVoice("mission");
+        }
+      });
+    });
+  }
 
-  missionOrbit.addEventListener("pointerdown", (event) => {
+  missionOrbitInstance?.dispose();
+  missionOrbitOverlay.innerHTML = "";
+  const reduceMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+  missionOrbitInstance = new MissionOrbit({
+    canvas: missionOrbitCanvas,
+    overlay: missionOrbitOverlay,
+    dossiers: missionDossiers,
+    reducedMotion: reduceMotionQuery.matches,
+    onHover: (dossier) => {
+      updatePanel(dossier);
+      pulseHint(`Tracking ${dossier.label}.`, true);
+      audioManager?.playEffect("focus");
+    },
+    onSelect: (dossier) => {
+      const target = select(dossier.target);
+      target?.scrollIntoView({ behavior: "smooth", block: "start" });
+      audioManager?.playVoice("mission");
+    },
+    onWireframeChange: (enabled) => {
+      wireframeEnabled = enabled;
+      restoreHint();
+    },
+  });
+
+  missionOrbitInstance.focusDossier(missionDossiers[0].id);
+
+  missionOrbit.addEventListener("pointerdown", () => {
     missionOrbit.classList.add("mission-control__orbital--engaged");
-    dragging = true;
-    lastX = event.clientX;
-    missionOrbit.setPointerCapture?.(event.pointerId);
     pulseHint(dragHint, true);
   });
-
-  missionOrbit.addEventListener("pointermove", (event) => {
-    if (!dragging) return;
-    const delta = event.clientX - lastX;
-    lastX = event.clientX;
-    velocity = delta * 0.15;
+  missionOrbit.addEventListener("pointerup", () => {
+    missionOrbit.classList.remove("mission-control__orbital--engaged");
+    restoreHint();
   });
-
-  window.addEventListener("pointerup", (event) => {
-    if (dragging && missionOrbit.hasPointerCapture?.(event.pointerId)) {
-      missionOrbit.releasePointerCapture(event.pointerId);
-    }
-    dragging = false;
+  missionOrbit.addEventListener("mouseleave", () => {
     missionOrbit.classList.remove("mission-control__orbital--engaged");
     restoreHint();
   });
@@ -273,50 +296,42 @@ function renderMissionControl() {
   missionOrbit.addEventListener("keydown", (event) => {
     if (event.code === "Space") {
       event.preventDefault();
-      wireframeEnabled = !wireframeEnabled;
-      missionOrbit.classList.toggle("mission-control__orbital--wireframe", wireframeEnabled);
-      restoreHint();
+      missionOrbitInstance?.toggleWireframe();
       return;
     }
 
     if (event.code === "ArrowLeft" || event.code === "ArrowRight") {
       event.preventDefault();
-      const delta = event.code === "ArrowRight" ? 0.6 : -0.6;
-      velocity = Math.max(-6, Math.min(6, velocity + delta));
-      pulseHint(`Orbit velocity recalibrated (${velocity.toFixed(1)}x).`);
+      missionOrbitInstance?.adjustVelocity(event.code === "ArrowRight" ? 0.6 : -0.6);
+      pulseHint("Orbit velocity recalibrated.");
       return;
     }
 
     if (event.code === "ArrowUp") {
       event.preventDefault();
-      velocity = Math.max(-6, Math.min(6, velocity * 1.1 + 0.2));
-      pulseHint(`Orbit boost engaged (${velocity.toFixed(1)}x).`);
+      missionOrbitInstance?.boostVelocity(1.3);
+      pulseHint("Orbit boost engaged.");
       return;
     }
 
     if (event.code === "ArrowDown") {
       event.preventDefault();
-      velocity *= 0.6;
-      pulseHint(`Orbit damping engaged (${velocity.toFixed(1)}x).`);
+      missionOrbitInstance?.boostVelocity(0.6);
+      pulseHint("Orbit damping engaged.");
     }
   });
 
-  missionOrbit.addEventListener("focus", restoreHint);
-  missionOrbit.addEventListener("blur", restoreHint);
+  missionOrbit.addEventListener("focus", () => restoreHint());
+  missionOrbit.addEventListener("blur", () => restoreHint());
 
-  function orbit() {
-    spin += velocity;
-    velocity *= dragging ? 0.8 : 0.94;
-    if (!dragging && !reduceMotion) {
-      velocity += 0.02;
+  reduceMotionQuery.addEventListener("change", (event) => {
+    if (missionOrbitInstance) {
+      missionOrbitInstance.reducedMotion = event.matches;
     }
-    nodes.forEach((node) => node.style.setProperty("--orbit-spin", `${spin}deg`));
-    requestAnimationFrame(orbit);
-  }
-
-  orbit();
+  });
 
   updatePanel(missionDossiers[0]);
+  restoreHint();
 
   window.addEventListener("beforeunload", () => clearTimeout(hintTimeout));
 }
@@ -376,30 +391,275 @@ function animateCounters() {
 }
 
 function renderIncidentMap() {
-  const alertContainer = select(".incident-map__alerts");
-  incidentAlerts.forEach((alert) => {
-    const node = document.createElement("div");
-    node.className = "alert-node";
-    node.style.left = `${alert.x}%`;
-    node.style.top = `${alert.y}%`;
-    node.style.animationDelay = `${alert.delay}ms`;
-    alertContainer.appendChild(node);
-  });
-
+  const svg = select("#incident-map-canvas");
+  const timeline = select("#incident-timeline");
   const decisionContainer = select("#incident-decisions");
   const panel = select("#incident-panel");
+  const playButton = select("#incident-play");
+  const scrubber = select("#incident-scrub");
+  if (!svg || !timeline || !decisionContainer || !panel || !playButton || !scrubber) return;
 
-  incidentDecisionTree.forEach((decision, index) => {
-    const btn = document.createElement("button");
-    btn.className = "decision-btn";
-    btn.type = "button";
-    btn.dataset.decision = decision.id;
-    btn.textContent = decision.label;
-    if (index === 0) btn.classList.add("active");
-    decisionContainer.appendChild(btn);
+  const ns = "http://www.w3.org/2000/svg";
+  svg.innerHTML = "";
+  timeline.innerHTML = "";
+  decisionContainer.innerHTML = "";
+
+  const nodeMap = new Map();
+  const shieldMap = new Map();
+  const flowMap = new Map();
+
+  const playback = {
+    sceneId: null,
+    entries: [],
+    index: 0,
+    playing: false,
+    lastTick: 0,
+    delay: 4200,
+  };
+  let playbackFrame;
+
+  const cleanupPlayback = () => {
+    cancelAnimationFrame(playbackFrame);
+    playback.playing = false;
+    playButton.setAttribute("aria-pressed", "false");
+    playButton.classList.remove("chip--active");
+    playButton.textContent = "Auto-Play Timeline";
+  };
+
+  const setActiveEntry = (index, announce = true) => {
+    if (!playback.entries.length) return;
+    playback.index = clamp(index, 0, playback.entries.length - 1);
+    scrubber.value = String(playback.index);
+    selectAll("[data-timeline-index]", timeline).forEach((item) => {
+      const active = Number(item.dataset.timelineIndex) === playback.index;
+      item.classList.toggle("incident-timeline__item--active", active);
+      if (active) {
+        item.setAttribute("aria-current", "true");
+        if (typeof item.scrollIntoView === "function") {
+          item.scrollIntoView({ behavior: announce ? "smooth" : "auto", inline: "center", block: "nearest" });
+        }
+        if (announce) {
+          timeline.setAttribute(
+            "aria-label",
+            `${playback.entries[playback.index].label} at ${playback.entries[playback.index].time}`
+          );
+        }
+      } else {
+        item.removeAttribute("aria-current");
+      }
+    });
+
+    const entry = playback.entries[playback.index];
+    if (!entry) return;
+    if (entry.type === "brief") {
+      audioManager?.playVoice("brief");
+    } else {
+      audioManager?.playEffect("focus");
+    }
+  };
+
+  const playLoop = (timestamp) => {
+    if (!playback.playing) return;
+    if (!playback.lastTick) playback.lastTick = timestamp;
+    const elapsed = timestamp - playback.lastTick;
+    if (elapsed >= playback.delay) {
+      playback.lastTick = timestamp;
+      if (playback.index < playback.entries.length - 1) {
+        setActiveEntry(playback.index + 1);
+      } else {
+        cleanupPlayback();
+        playback.lastTick = 0;
+        return;
+      }
+    }
+    playbackFrame = requestAnimationFrame(playLoop);
+  };
+
+  const setPlaying = (state) => {
+    cancelAnimationFrame(playbackFrame);
+    if (!playback.entries.length) {
+      playback.playing = false;
+      playButton.classList.remove("chip--active");
+      playButton.setAttribute("aria-pressed", "false");
+      playButton.textContent = "Auto-Play Timeline";
+      return;
+    }
+    playback.playing = state;
+    playButton.classList.toggle("chip--active", state);
+    playButton.setAttribute("aria-pressed", String(state));
+    playButton.textContent = state ? "Pause Auto-Play" : "Auto-Play Timeline";
+    if (state) {
+      playback.lastTick = 0;
+      audioManager?.playEffect("effects");
+      playbackFrame = requestAnimationFrame(playLoop);
+    }
+  };
+
+  playButton.addEventListener("click", () => {
+    if (!playback.entries.length) return;
+    if (playback.playing) {
+      setPlaying(false);
+    } else {
+      setPlaying(true);
+    }
+  });
+
+  scrubber.addEventListener("input", (event) => {
+    const nextIndex = Number(event.target.value);
+    setPlaying(false);
+    setActiveEntry(nextIndex, false);
+  });
+
+  timeline.addEventListener("click", (event) => {
+    const item = event.target.closest("[data-timeline-index]");
+    if (!item) return;
+    setPlaying(false);
+    setActiveEntry(Number(item.dataset.timelineIndex));
+  });
+
+  timeline.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    const item = event.target.closest("[data-timeline-index]");
+    if (!item) return;
+    event.preventDefault();
+    setPlaying(false);
+    setActiveEntry(Number(item.dataset.timelineIndex));
+  });
+
+  incidentAssets.forEach((asset) => {
+    const shield = document.createElementNS(ns, "circle");
+    shield.setAttribute("cx", asset.x);
+    shield.setAttribute("cy", asset.y);
+    shield.setAttribute("r", "0");
+    shield.classList.add("incident-shield");
+    shield.dataset.assetId = asset.id;
+    svg.appendChild(shield);
+    shieldMap.set(asset.id, shield);
+
+    const node = document.createElementNS(ns, "circle");
+    node.setAttribute("cx", asset.x);
+    node.setAttribute("cy", asset.y);
+    node.setAttribute("r", "3.2");
+    node.classList.add("incident-node", `incident-node--${asset.zone}`);
+    node.dataset.assetId = asset.id;
+    svg.appendChild(node);
+    nodeMap.set(asset.id, node);
+
+    const label = document.createElementNS(ns, "text");
+    label.setAttribute("x", String(asset.x + 2.4));
+    label.setAttribute("y", String(asset.y - 2.4));
+    label.classList.add("incident-label");
+    label.textContent = asset.label;
+    svg.appendChild(label);
+  });
+
+  Object.values(incidentScenes).forEach((scene) => {
+    scene.flows.forEach((flow) => {
+      const key = `${flow.from}:${flow.to}`;
+      if (flowMap.has(key)) return;
+      const from = incidentAssets.find((asset) => asset.id === flow.from);
+      const to = incidentAssets.find((asset) => asset.id === flow.to);
+      if (!from || !to) return;
+      const path = document.createElementNS(ns, "path");
+      const midX = (from.x + to.x) / 2;
+      const midY = (from.y + to.y) / 2 - 6;
+      path.setAttribute("d", `M ${from.x} ${from.y} Q ${midX} ${midY} ${to.x} ${to.y}`);
+      path.classList.add("incident-link");
+      path.dataset.flowKey = key;
+      svg.insertBefore(path, svg.firstChild);
+      flowMap.set(key, path);
+    });
   });
 
   const decisionButtons = () => selectAll(".decision-btn", decisionContainer);
+
+  const updateScene = (sceneId) => {
+    const scene = incidentScenes[sceneId];
+    timeline.innerHTML = "";
+    delete timeline.dataset.scene;
+    timeline.removeAttribute("aria-label");
+    nodeMap.forEach((node) => node.classList.remove("incident-node--active"));
+    flowMap.forEach((flow) => {
+      flow.classList.remove(
+        "incident-link--active",
+        "incident-link--alert",
+        "incident-link--analysis",
+        "incident-link--command",
+        "incident-link--contain",
+        "incident-link--brief",
+        "incident-link--outcome"
+      );
+    });
+    shieldMap.forEach((shield) => {
+      shield.classList.remove(
+        "incident-shield--active",
+        "incident-shield--monitor",
+        "incident-shield--contain",
+        "incident-shield--brief"
+      );
+      shield.setAttribute("r", "0");
+    });
+
+    if (!scene) return;
+
+    const activeAssets = new Set();
+    scene.flows.forEach((flow) => {
+      const key = `${flow.from}:${flow.to}`;
+      const element = flowMap.get(key);
+      if (element) {
+        element.classList.add("incident-link--active", `incident-link--${flow.type}`);
+      }
+      activeAssets.add(flow.from);
+      activeAssets.add(flow.to);
+    });
+
+    scene.shields?.forEach((shield) => {
+      const shieldEl = shieldMap.get(shield.center);
+      if (shieldEl) {
+        shieldEl.classList.add("incident-shield--active", `incident-shield--${shield.type}`);
+        shieldEl.setAttribute("r", String(shield.radius));
+      }
+      activeAssets.add(shield.center);
+    });
+
+    activeAssets.forEach((assetId) => {
+      const node = nodeMap.get(assetId);
+      if (node) {
+        node.classList.add("incident-node--active");
+      }
+    });
+
+    timeline.innerHTML = scene.timeline
+      .map(
+        (entry, index) => `
+        <article
+          class="incident-timeline__item incident-timeline__item--${entry.type}"
+          data-timeline-index="${index}"
+          tabindex="0"
+        >
+          <header>
+            <span>${entry.time}</span>
+            <h5>${entry.label}</h5>
+          </header>
+          <p>${entry.detail}</p>
+        </article>
+      `
+      )
+      .join("");
+
+    timeline.dataset.scene = sceneId;
+    timeline.setAttribute("aria-label", `${scene.label} timeline updates`);
+
+    playback.sceneId = sceneId;
+    playback.entries = scene.timeline;
+    playback.index = 0;
+    scrubber.max = Math.max(playback.entries.length - 1, 0);
+    scrubber.value = "0";
+    setPlaying(false);
+    if (playback.entries.length > 0) {
+      setActiveEntry(0, false);
+    }
+  };
 
   function updateDecision(decisionId) {
     const data = incidentDecisionTree.find((item) => item.id === decisionId);
@@ -416,7 +676,19 @@ function renderIncidentMap() {
         ${data.actions.map((action) => `<li>${action}</li>`).join("")}
       </ul>
     `;
+    updateScene(data.scene);
   }
+
+  incidentDecisionTree.forEach((decision, index) => {
+    const btn = document.createElement("button");
+    btn.className = "decision-btn";
+    btn.type = "button";
+    btn.dataset.decision = decision.id;
+    btn.dataset.scene = decision.scene;
+    btn.textContent = decision.label;
+    if (index === 0) btn.classList.add("active");
+    decisionContainer.appendChild(btn);
+  });
 
   decisionContainer.addEventListener("click", (event) => {
     const target = event.target.closest(".decision-btn");
@@ -438,6 +710,8 @@ function renderIncidentMap() {
   });
 
   updateDecision(incidentDecisionTree[0].id);
+
+  window.addEventListener("beforeunload", cleanupPlayback);
 }
 
 function renderBriefingLog() {
@@ -581,6 +855,110 @@ function renderHunts() {
     typewriterFrame = requestAnimationFrame(step);
   };
 
+  const drawChart = (svg, series) => {
+    if (!svg || !series || series.length === 0) {
+      if (svg) svg.innerHTML = "";
+      return;
+    }
+    const width = 120;
+    const height = 60;
+    const padding = 8;
+    const values = series.map((point) => point.value);
+    const max = Math.max(...values);
+    const min = Math.min(...values);
+    const range = Math.max(max - min, 1);
+    const step = series.length > 1 ? (width - padding * 2) / (series.length - 1) : width / 2;
+    let path = "";
+    series.forEach((point, index) => {
+      const x = padding + index * step;
+      const normalized = (point.value - min) / range;
+      const y = height - padding - normalized * (height - padding * 2);
+      path += `${index === 0 ? "M" : "L"} ${x} ${y} `;
+    });
+    const markers = series
+      .map((point, index) => {
+        const x = padding + index * step;
+        const normalized = (point.value - min) / range;
+        const y = height - padding - normalized * (height - padding * 2);
+        return `<circle cx="${x}" cy="${y}" r="2" class="hunt-chart__marker" />`;
+      })
+      .join("");
+    svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+    svg.innerHTML = `
+      <path d="${path.trim()}" class="hunt-chart__path" />
+      ${markers}
+    `;
+  };
+
+  const drawMatrix = (container, matrix) => {
+    if (!container) return;
+    if (!matrix || matrix.length === 0) {
+      container.innerHTML = "<p>No relationships observed.</p>";
+      return;
+    }
+    const maxWeight = Math.max(...matrix.map((entry) => entry.weight));
+    container.innerHTML = matrix
+      .map((entry) => {
+        const width = Math.round((entry.weight / Math.max(maxWeight, 1)) * 100);
+        return `
+          <div class="hunt-matrix__row">
+            <div class="hunt-matrix__label">
+              <span>${entry.source}</span>
+              <span>➝</span>
+              <span>${entry.target}</span>
+            </div>
+            <div class="hunt-matrix__bar"><span style="width:${width}%"></span></div>
+          </div>
+        `;
+      })
+      .join("");
+  };
+
+  const drawHeatmap = (container, cells) => {
+    if (!container) return;
+    container.setAttribute("role", "list");
+    if (!cells || cells.length === 0) {
+      container.innerHTML = "<p class=\"hunt-heatmap__empty\">No concentration shifts detected.</p>";
+      return;
+    }
+    const maxValue = Math.max(...cells.map((cell) => cell.value));
+    container.innerHTML = cells
+      .map((cell) => {
+        const intensity = maxValue ? Math.round((cell.value / maxValue) * 100) : 0;
+        return `
+          <div class="hunt-heatmap__cell" role="listitem" style="--cell-intensity:${intensity}">
+            <span class="hunt-heatmap__value">${cell.value}</span>
+            <span class="hunt-heatmap__label">${cell.label}</span>
+            <span class="hunt-heatmap__detail">${cell.detail}</span>
+          </div>
+        `;
+      })
+      .join("");
+  };
+
+  const renderPackets = (container, packets) => {
+    if (!container) return;
+    if (!packets || packets.length === 0) {
+      container.innerHTML = "<p class=\"hunt-packets__empty\">No notable packets captured.</p>";
+      return;
+    }
+    container.innerHTML = `
+      <ul class="hunt-packets__list">
+        ${packets
+          .map(
+            (packet) => `
+              <li>
+                <div class="hunt-packets__route">${packet.label}</div>
+                <div class="hunt-packets__bytes">${packet.bytes}</div>
+                <p>${packet.detail}</p>
+              </li>
+            `
+          )
+          .join("")}
+      </ul>
+    `;
+  };
+
   hunts.forEach((hunt, index) => {
     const button = document.createElement("button");
     button.className = "hunt-btn";
@@ -595,15 +973,41 @@ function renderHunts() {
   function update(huntId) {
     const hunt = hunts.find((item) => item.id === huntId);
     if (!hunt) return;
-    selectAll(".hunt-btn", queue).forEach((btn) => btn.setAttribute("aria-selected", btn.dataset.huntId === huntId ? "true" : "false"));
+    selectAll(".hunt-btn", queue).forEach((btn) =>
+      btn.setAttribute("aria-selected", btn.dataset.huntId === huntId ? "true" : "false")
+    );
     terminal.innerHTML = `
-      <pre class="typewriter" aria-live="polite"></pre>
-      <section class="hunt-intel" aria-label="Context differentials">
-        <div class="hunt-intel__toggle" role="tablist" aria-label="Toggle hunt context">
-          <button class="chip chip--small chip--active" type="button" data-intel-toggle="baseline" role="tab" aria-selected="true">Baseline</button>
-          <button class="chip chip--small" type="button" data-intel-toggle="anomaly" role="tab" aria-selected="false">Suspicious</button>
+      <div class="hunt-terminal__layout">
+        <div class="hunt-terminal__query">
+          <pre class="typewriter" aria-live="polite"></pre>
+          <div class="hunt-telemetry" aria-hidden="false">
+            <svg class="hunt-chart" data-hunt-chart></svg>
+            <div class="hunt-matrix" data-hunt-matrix></div>
+          </div>
+          <div class="hunt-signals">
+            <section>
+              <h5>Signal Concentration</h5>
+              <div class="hunt-heatmap" data-hunt-heatmap></div>
+            </section>
+            <section>
+              <h5>Packet Synopsis</h5>
+              <div class="hunt-packets" data-hunt-packets></div>
+            </section>
+          </div>
         </div>
-        <div class="hunt-intel__panel" data-hunt-intel></div>
+        <section class="hunt-intel" aria-label="Context differentials">
+          <div class="hunt-intel__toggle" role="tablist" aria-label="Toggle hunt context">
+            <button class="chip chip--small chip--active" type="button" data-intel-toggle="baseline" role="tab" aria-selected="true">Baseline</button>
+            <button class="chip chip--small" type="button" data-intel-toggle="anomaly" role="tab" aria-selected="false">Suspicious</button>
+          </div>
+          <div class="hunt-intel__panel" data-hunt-intel></div>
+        </section>
+      </div>
+      <section class="hunt-notes">
+        <h4>Operational Notes</h4>
+        <ul data-hunt-notes>
+          ${hunt.telemetry?.notes?.map((note) => `<li>${note}</li>`).join("") || ""}
+        </ul>
       </section>
       <div class="analysis">
         <h4>Analysis</h4>
@@ -612,11 +1016,17 @@ function renderHunts() {
       <div class="analysis">
         <h4>Outcome</h4>
         <p>${hunt.outcome}</p>
-        <ul>
-          <li>${hunt.coverage.detections}</li>
-          <li>${hunt.coverage.firewall}</li>
-          <li>${hunt.coverage.visibility}</li>
-        </ul>
+        <div class="hunt-outcomes">
+          ${Object.values(hunt.coverage)
+            .map(
+              (item) => `
+                <button type="button" class="outcome-badge" data-scroll="${item.target}">
+                  ${item.label}
+                </button>
+              `
+            )
+            .join("")}
+        </div>
       </div>
       <div class="analysis">
         <h4>MITRE ATT&CK Alignment</h4>
@@ -628,32 +1038,51 @@ function renderHunts() {
     const queryElement = terminal.querySelector(".typewriter");
     runTypewriter(queryElement, hunt.query);
 
-    const panel = terminal.querySelector("[data-hunt-intel]");
+    const intelPanel = terminal.querySelector("[data-hunt-intel]");
     const toggles = selectAll("[data-intel-toggle]", terminal);
-    if (!panel) return;
+    const chart = terminal.querySelector("[data-hunt-chart]");
+    const matrix = terminal.querySelector("[data-hunt-matrix]");
+    const heatmap = terminal.querySelector("[data-hunt-heatmap]");
+    const packetsPanel = terminal.querySelector("[data-hunt-packets]");
 
-    function renderIntel(view) {
-      const data = view === "baseline" ? hunt.baselines : hunt.anomalies;
-      if (!panel) return;
-      panel.innerHTML = `
-        <ul>
-          ${data.map((item) => `<li><strong>${item.label}:</strong> ${item.detail}</li>`).join("")}
-        </ul>
-      `;
+    const renderIntel = (view) => {
+      const context = view === "baseline" ? hunt.baselines : hunt.anomalies;
+      if (intelPanel) {
+        intelPanel.innerHTML = `
+          <ul>
+            ${context.map((item) => `<li><strong>${item.label}:</strong> ${item.detail}</li>`).join("")}
+          </ul>
+        `;
+      }
       toggles.forEach((toggle) => {
         const active = toggle.dataset.intelToggle === view;
         toggle.classList.toggle("chip--active", active);
         toggle.setAttribute("aria-selected", String(active));
       });
-    }
+      const telemetry = hunt.telemetry?.[view];
+      drawChart(chart, telemetry?.timeline);
+      drawMatrix(matrix, telemetry?.matrix);
+      drawHeatmap(heatmap, telemetry?.heatmap);
+      renderPackets(packetsPanel, telemetry?.packets);
+    };
 
     toggles.forEach((toggle) =>
       toggle.addEventListener("click", () => {
         renderIntel(toggle.dataset.intelToggle);
+        audioManager?.playEffect("focus");
       })
     );
 
+    selectAll(".outcome-badge", terminal).forEach((badge) => {
+      badge.addEventListener("click", () => {
+        const target = select(badge.dataset.scroll);
+        target?.scrollIntoView({ behavior: "smooth", block: "start" });
+        audioManager?.playVoice("mission");
+      });
+    });
+
     renderIntel("baseline");
+    audioManager?.playEffect("effects");
   }
 
   queue.addEventListener("click", (event) => {
@@ -827,6 +1256,272 @@ function renderImpact() {
   update("all");
 }
 
+function renderBattleCard() {
+  if (!battleCardBody || !battleCardOverlay) return;
+  const { header, summary, engagements, hunts: huntIntel, callToAction } = battleCardIntel;
+
+  if (battleCardTitle) battleCardTitle.textContent = header.title;
+  if (battleCardSubtitle) battleCardSubtitle.textContent = header.subtitle;
+  if (battleCardMeta) {
+    battleCardMeta.innerHTML = header.meta
+      .map((item) => `
+        <div class="battle-card__meta-item">
+          <dt>${item.label}</dt>
+          <dd>${item.value}</dd>
+        </div>
+      `)
+      .join("");
+  }
+
+  const summaryHtml = summary
+    .map(
+      (item) => `
+        <li>
+          <h4>${item.label}</h4>
+          <p>${item.detail}</p>
+        </li>
+      `
+    )
+    .join("");
+
+  const engagementHtml = engagements
+    .map((engagement) => `
+      <article class="battle-card__engagement">
+        <header>
+          <h4>${engagement.organization}</h4>
+          <p class="battle-card__engagement-meta">${engagement.timeframe} • ${engagement.objective}</p>
+        </header>
+        <div class="battle-card__columns">
+          <div>
+            <h5>Operational Moves</h5>
+            <ul>${engagement.highlights.map((highlight) => `<li>${highlight}</li>`).join("")}</ul>
+          </div>
+          <div>
+            <h5>Documented Impact</h5>
+            <ul>${engagement.outcomes.map((outcome) => `<li>${outcome}</li>`).join("")}</ul>
+          </div>
+        </div>
+      </article>
+    `)
+    .join("");
+
+  const huntsHtml = huntIntel
+    .map(
+      (hunt) => `
+        <li>
+          <h5>${hunt.title}</h5>
+          <p class="battle-card__insight">${hunt.insight}</p>
+          <p class="battle-card__impact">${hunt.impact}</p>
+        </li>
+      `
+    )
+    .join("");
+
+  const sections = `
+    <section class="battle-card__section">
+      <h3>Mission Snapshot</h3>
+      <ul class="battle-card__list">${summaryHtml}</ul>
+    </section>
+    <section class="battle-card__section">
+      <h3>Engagement Theaters</h3>
+      ${engagementHtml}
+    </section>
+    <section class="battle-card__section">
+      <h3>Threat Hunt Arsenal</h3>
+      <ul class="battle-card__list battle-card__list--grid">${huntsHtml}</ul>
+    </section>
+    <section class="battle-card__section battle-card__section--cta">
+      <h3>${callToAction.headline}</h3>
+      <p>${callToAction.detail}</p>
+    </section>
+  `;
+
+  battleCardBody.innerHTML = sections;
+}
+
+function openBattleCard() {
+  if (!battleCardOverlay || !battleCardPanel) return;
+  renderBattleCard();
+  battleCardPreviouslyFocused = document.activeElement;
+  battleCardOverlay.hidden = false;
+  battleCardOverlay.setAttribute("aria-hidden", "false");
+  document.body.classList.add("body--no-scroll");
+  battleCardPanel.setAttribute("tabindex", "-1");
+  battleCardPanel.focus({ preventScroll: true });
+}
+
+function closeBattleCard() {
+  if (!battleCardOverlay) return;
+  battleCardOverlay.hidden = true;
+  battleCardOverlay.setAttribute("aria-hidden", "true");
+  document.body.classList.remove("body--no-scroll");
+  battleCardPanel?.removeAttribute("tabindex");
+  if (battleCardPreviouslyFocused && typeof battleCardPreviouslyFocused.focus === "function") {
+    battleCardPreviouslyFocused.focus();
+  }
+}
+
+function downloadBattleCard() {
+  const documentTitle = battleCardIntel.header.title;
+  const markup = `<!DOCTYPE html>
+    <html lang="en">
+      <head>
+        <meta charset="utf-8" />
+        <title>${documentTitle}</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <style>
+          :root {
+            color-scheme: dark;
+            font-family: 'Space Grotesk', 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: #05080f;
+            color: #e6f9ff;
+          }
+          body { margin: 0; padding: 2.5rem; background: radial-gradient(circle at top left, #0f1b38, #05080f 60%); }
+          h1, h2, h3, h4, h5 { margin: 0 0 0.75rem 0; }
+          h1 { font-size: 2rem; letter-spacing: 0.08em; text-transform: uppercase; }
+          section { margin-bottom: 2rem; border: 1px solid rgba(120, 255, 255, 0.22); border-radius: 18px; padding: 1.5rem; background: rgba(8, 16, 32, 0.78); box-shadow: 0 18px 40px rgba(5, 12, 24, 0.45); }
+          dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 0.75rem; margin: 0; }
+          dt { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.12em; color: #7fffee; }
+          dd { margin: 0; font-weight: 500; }
+          ul { padding-left: 1.15rem; margin: 0.5rem 0 0 0; }
+          li { margin-bottom: 0.5rem; line-height: 1.5; }
+          .grid { display: grid; gap: 1.25rem; }
+          .grid--two { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+          .section-title { font-size: 1.1rem; text-transform: uppercase; letter-spacing: 0.14em; color: #7fffee; }
+          .eyebrow { text-transform: uppercase; letter-spacing: 0.2em; color: #56d6ff; font-size: 0.75rem; margin-bottom: 0.5rem; }
+          .headline { margin-bottom: 2rem; }
+          .engagement { border-top: 1px solid rgba(127, 255, 238, 0.16); padding-top: 1.25rem; margin-top: 1.25rem; }
+        </style>
+      </head>
+      <body>
+        <header class="headline">
+          <p class="eyebrow">Rapid deployment brief</p>
+          <h1>${documentTitle}</h1>
+          <p>${battleCardIntel.header.subtitle}</p>
+          <dl>
+            ${battleCardIntel.header.meta
+              .map((item) => `<div><dt>${item.label}</dt><dd>${item.value}</dd></div>`)
+              .join("")}
+          </dl>
+        </header>
+        <section>
+          <h2 class="section-title">Mission Snapshot</h2>
+          <div class="grid grid--two">
+            ${battleCardIntel.summary
+              .map(
+                (item) => `
+                  <div>
+                    <h3>${item.label}</h3>
+                    <p>${item.detail}</p>
+                  </div>
+                `
+              )
+              .join("")}
+          </div>
+        </section>
+        <section>
+          <h2 class="section-title">Engagement Theaters</h2>
+          ${battleCardIntel.engagements
+            .map(
+              (engagement) => `
+                <article class="engagement">
+                  <h3>${engagement.organization}</h3>
+                  <p><strong>${engagement.timeframe}</strong> — ${engagement.objective}</p>
+                  <h4>Operational Moves</h4>
+                  <ul>${engagement.highlights.map((highlight) => `<li>${highlight}</li>`).join("")}</ul>
+                  <h4>Documented Impact</h4>
+                  <ul>${engagement.outcomes.map((outcome) => `<li>${outcome}</li>`).join("")}</ul>
+                </article>
+              `
+            )
+            .join("")}
+        </section>
+        <section>
+          <h2 class="section-title">Threat Hunt Arsenal</h2>
+          <div class="grid grid--two">
+            ${battleCardIntel.hunts
+              .map(
+                (hunt) => `
+                  <div>
+                    <h3>${hunt.title}</h3>
+                    <p><em>${hunt.insight}</em></p>
+                    <p>${hunt.impact}</p>
+                  </div>
+                `
+              )
+              .join("")}
+          </div>
+        </section>
+        <section>
+          <h2 class="section-title">Next Actions</h2>
+          <p>${battleCardIntel.callToAction.detail}</p>
+        </section>
+      </body>
+    </html>`;
+
+  const blob = new Blob([markup], { type: "text/html" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = "sterling-battle-card.html";
+  document.body.appendChild(anchor);
+  anchor.click();
+  requestAnimationFrame(() => {
+    document.body.removeChild(anchor);
+    URL.revokeObjectURL(url);
+  });
+}
+
+function initBattleCard() {
+  if (!battleCardOverlay) return;
+  battleCardOverlay.hidden = true;
+  battleCardOverlay.setAttribute("aria-hidden", "true");
+
+  battleCardDismissButtons.forEach((button) =>
+    button.addEventListener("click", () => {
+      closeBattleCard();
+    })
+  );
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !battleCardOverlay.hidden) {
+      closeBattleCard();
+    }
+  });
+
+  battleCardOverlay.addEventListener("click", (event) => {
+    if (event.target === battleCardOverlay) {
+      closeBattleCard();
+    }
+  });
+
+  if (battleCardPanel) {
+    battleCardPanel.addEventListener("keydown", (event) => {
+      if (event.key !== "Tab" || battleCardOverlay.hidden) return;
+      const focusableElements = selectAll(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+        battleCardPanel
+      ).filter((element) => !element.hasAttribute("disabled"));
+      if (!focusableElements.length) return;
+      const first = focusableElements[0];
+      const last = focusableElements[focusableElements.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    });
+  }
+
+  if (battleCardDownload) {
+    battleCardDownload.addEventListener("click", () => {
+      downloadBattleCard();
+    });
+  }
+}
+
 function initTimeline() {
   if (!timelineList) return;
   const sections = timelineSegments.map((segment) => {
@@ -867,7 +1562,7 @@ function initTimeline() {
       const allVisited = sections.every((section) => section.element.classList.contains("timeline__item--visited"));
       if (allVisited) {
         timelineIntel.textContent =
-          "All dossiers explored. Bonus intel unlocked: run 'battle_card' in the deploy console to pull Sterling's battle brief.";
+          "All dossiers explored. Bonus intel unlocked: run 'battle_card' in the deploy console to open Sterling's battle brief, then 'download_battle_card' to export it.";
         timelineIntel.classList.add("timeline__intel--unlocked");
       }
     },
@@ -932,6 +1627,13 @@ function initDeployConsole() {
     const entry = deployCommands[key];
     if (entry) {
       printResponse(entry.response);
+      if (key === "battle_card") {
+        openBattleCard();
+      }
+      if (key === "download_battle_card") {
+        renderBattleCard();
+        downloadBattleCard();
+      }
     } else {
       printResponse([`Command '${command}' not recognized. Type 'help' for options.`]);
     }
@@ -1004,15 +1706,28 @@ function initTelemetry() {
 }
 
 function initAudio() {
-  let enabled = false;
-  audioToggle.addEventListener("click", () => {
-    enabled = !enabled;
-    audioToggle.setAttribute("aria-pressed", String(enabled));
+  audioManager = createAudioManager({
+    onStateChange: (channel, enabled) => {
+      audioButtons
+        .filter((button) => button.dataset.audioChannel === channel)
+        .forEach((button) => {
+          button.setAttribute("aria-pressed", String(enabled));
+          button.classList.toggle("hud__audio--active", enabled);
+        });
+    },
+  });
+
+  const currentState = audioManager.currentState();
+  audioButtons.forEach((button) => {
+    const channel = button.dataset.audioChannel;
+    const enabled = currentState[channel];
+    button.setAttribute("aria-pressed", String(enabled));
     if (enabled) {
-      ambientAudio.start();
-    } else {
-      ambientAudio.stop();
+      button.classList.add("hud__audio--active");
     }
+    button.addEventListener("click", () => {
+      audioManager.toggleChannel(channel);
+    });
   });
 }
 
@@ -1036,6 +1751,7 @@ function initApp() {
   renderSkills();
   renderImpact();
   initTimeline();
+  initBattleCard();
   initDeployConsole();
   initTelemetry();
   initAudio();

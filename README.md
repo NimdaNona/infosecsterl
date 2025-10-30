@@ -19,6 +19,7 @@ The project is implemented as a static web experience. To preview locally, open 
 - **Interactive skill orbit** letting reviewers jump directly to the mission sections that evidence each competency.
 - **Impact command center** with filterable outcome dashboards and a persistent mission timeline ribbon.
 - **Deployment console CTA** mimicking a secure terminal for next-step engagement, complete with a `battle_card` quick-brief command.
+- **Battle card overlay & export** delivering an on-screen executive briefing with an accessible `download_battle_card` HTML export instead of binary assets.
 
 ## Accessibility & Responsiveness
 

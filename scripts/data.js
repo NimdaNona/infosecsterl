@@ -69,6 +69,92 @@ export const timelineSegments = [
   },
 ];
 
+export const incidentAssets = [
+  { id: "edge-gateway", label: "Edge Gateway", x: 18, y: 28, zone: "perimeter" },
+  { id: "digital-bank", label: "Digital Banking", x: 10, y: 54, zone: "customer" },
+  { id: "soc-bridge", label: "SOC Bridge", x: 36, y: 18, zone: "command" },
+  { id: "iam-hub", label: "IAM Hub", x: 44, y: 46, zone: "identity" },
+  { id: "core-banking", label: "Core Banking", x: 64, y: 36, zone: "crown" },
+  { id: "payments-mesh", label: "Payments Mesh", x: 80, y: 58, zone: "crown" },
+  { id: "legal-ops", label: "Legal Ops", x: 26, y: 74, zone: "support" },
+  { id: "exec-bridge", label: "Executive Bridge", x: 54, y: 84, zone: "executive" },
+];
+
+export const incidentScenes = {
+  stabilize: {
+    label: "Stabilize Signal",
+    timeline: [
+      {
+        time: "00:02",
+        label: "Alert surge throttled",
+        detail: "Surge protocol isolates high-fidelity alerts for immediate triage.",
+        type: "alert",
+      },
+      {
+        time: "00:04",
+        label: "Bridge activated",
+        detail: "Executive bridge assembled with Legal and Communications observers.",
+        type: "brief",
+      },
+    ],
+    flows: [
+      { from: "digital-bank", to: "edge-gateway", type: "alert" },
+      { from: "edge-gateway", to: "soc-bridge", type: "analysis" },
+      { from: "soc-bridge", to: "iam-hub", type: "command" },
+    ],
+    shields: [{ center: "digital-bank", radius: 11, type: "monitor" }],
+  },
+  contain: {
+    label: "Contain Blast Radius",
+    timeline: [
+      {
+        time: "00:12",
+        label: "Segmentation enforced",
+        detail: "Network segmentation severs lateral movement within critical banking systems.",
+        type: "contain",
+      },
+      {
+        time: "00:18",
+        label: "Privileged reset",
+        detail: "18 elevated tokens revoked with automated credential hygiene.",
+        type: "identity",
+      },
+    ],
+    flows: [
+      { from: "iam-hub", to: "core-banking", type: "contain" },
+      { from: "core-banking", to: "payments-mesh", type: "contain" },
+      { from: "soc-bridge", to: "core-banking", type: "command" },
+    ],
+    shields: [
+      { center: "core-banking", radius: 16, type: "contain" },
+      { center: "payments-mesh", radius: 13, type: "contain" },
+    ],
+  },
+  brief: {
+    label: "Brief Stakeholders",
+    timeline: [
+      {
+        time: "00:24",
+        label: "Containment validated",
+        detail: "Segmentation, revocations, and automation telemetry published to leadership.",
+        type: "brief",
+      },
+      {
+        time: "00:36",
+        label: "Recovery trajectory",
+        detail: "Restoration roadmap, after-action items, and regulatory posture confirmed.",
+        type: "outcome",
+      },
+    ],
+    flows: [
+      { from: "soc-bridge", to: "exec-bridge", type: "brief" },
+      { from: "legal-ops", to: "exec-bridge", type: "brief" },
+      { from: "exec-bridge", to: "payments-mesh", type: "outcome" },
+    ],
+    shields: [{ center: "exec-bridge", radius: 12, type: "brief" }],
+  },
+};
+
 export const incidentDecisionTree = [
   {
     id: "stabilize",
@@ -80,6 +166,7 @@ export const incidentDecisionTree = [
       "Spawned executive bridge with Legal and Communications observers.",
       "Allocated forensic pods to endpoints exhibiting credential pivot attempts."
     ],
+    scene: "stabilize",
   },
   {
     id: "contain",
@@ -91,6 +178,7 @@ export const incidentDecisionTree = [
       "Coordinated IAM to revoke elevated tokens for 18 privileged accounts.",
       "Pushed emergency detection rules to isolate anomalous PowerShell orchestration."
     ],
+    scene: "contain",
   },
   {
     id: "brief",
@@ -102,16 +190,8 @@ export const incidentDecisionTree = [
       "Enabled treasury leadership to forecast potential customer impact scenarios.",
       "Documented follow-on improvements for regulatory reporting readiness."
     ],
+    scene: "brief",
   },
-];
-
-export const incidentAlerts = [
-  { id: 1, x: 18, y: 24, delay: 300 },
-  { id: 2, x: 62, y: 34, delay: 600 },
-  { id: 3, x: 45, y: 58, delay: 900 },
-  { id: 4, x: 78, y: 22, delay: 1200 },
-  { id: 5, x: 32, y: 70, delay: 1800 },
-  { id: 6, x: 14, y: 56, delay: 2200 },
 ];
 
 export const briefingTimeline = [
@@ -352,15 +432,96 @@ export const hunts = [
       },
     ],
     coverage: {
-      detections: "2 net-new detections",
-      firewall: "7 firewall policy updates",
-      visibility: "RDP telemetry completeness from 72% ➝ 98%",
+      detections: {
+        label: "2 net-new detections",
+        target: "#regions-bank",
+      },
+      firewall: {
+        label: "7 firewall policy updates",
+        target: "#duke-energy",
+      },
+      visibility: {
+        label: "RDP telemetry completeness from 72% ➝ 98%",
+        target: "#impact",
+      },
     },
     mitre: [
       "T1021.001 | Remote Services: Remote Desktop Protocol",
       "T1021.004 | Remote Services: SSH",
       "T1078 | Valid Accounts",
     ],
+    telemetry: {
+      baseline: {
+        timeline: [
+          { label: "00:00", value: 5 },
+          { label: "00:05", value: 6 },
+          { label: "00:10", value: 5 },
+          { label: "00:15", value: 7 },
+          { label: "00:20", value: 6 },
+        ],
+        matrix: [
+          { source: "Jump Hosts", target: "Finance", weight: 4 },
+          { source: "Jump Hosts", target: "Operations", weight: 3 },
+          { source: "Operations", target: "OT", weight: 2 },
+        ],
+        heatmap: [
+          { label: "Finance Jump Hosts", value: 4, detail: "Sanctioned bastions during maintenance" },
+          { label: "Operations Jump Hosts", value: 3, detail: "Approved OT remote checks" },
+          { label: "Privileged Access", value: 5, detail: "Dual-operator approvals in effect" },
+          { label: "Identity Services", value: 2, detail: "Token refresh keep-alives" },
+        ],
+        packets: [
+          {
+            label: "Maint-Bastion ➝ Treasury",
+            bytes: "1.8 MB",
+            detail: "Change window patch validation",
+          },
+          {
+            label: "Ops-Jump ➝ OT",
+            bytes: "1.1 MB",
+            detail: "Supervisory control integrity check",
+          },
+        ],
+        volume: 48,
+      },
+      anomaly: {
+        timeline: [
+          { label: "00:00", value: 6 },
+          { label: "00:05", value: 12 },
+          { label: "00:10", value: 18 },
+          { label: "00:15", value: 21 },
+          { label: "00:20", value: 17 },
+        ],
+        matrix: [
+          { source: "Rogue Hosts", target: "Finance", weight: 6 },
+          { source: "Rogue Hosts", target: "OT", weight: 4 },
+          { source: "Operations", target: "OT", weight: 3 },
+        ],
+        heatmap: [
+          { label: "Rogue Host 12", value: 8, detail: "Finance lateral attempts" },
+          { label: "Rogue Host 42", value: 7, detail: "OT pivot reconnaissance" },
+          { label: "Velocity Spike", value: 6, detail: "Unrealistic geo movement" },
+          { label: "Privileged Abuse", value: 5, detail: "Service account reused outside policy" },
+        ],
+        packets: [
+          {
+            label: "Rogue-12 ➝ Core Banking",
+            bytes: "8.6 MB",
+            detail: "Unauthorized backup harvesting attempt",
+          },
+          {
+            label: "Rogue-42 ➝ OT",
+            bytes: "6.4 MB",
+            detail: "Command channel enumeration",
+          },
+        ],
+        volume: 132,
+      },
+      notes: [
+        "Geo-velocity variance exceeded 800 miles between sequential logins.",
+        "Jump host inventory mismatch uncovered unmanaged pivots in shared services.",
+      ],
+    },
   },
   {
     id: "uncommon-rat",
@@ -391,15 +552,92 @@ export const hunts = [
       },
     ],
     coverage: {
-      detections: "1 hunt → 3 real-time detections",
-      firewall: "Tightened east-west ACLs across data centers",
-      visibility: "Credential misuse signal-to-noise improved 2.6x",
+      detections: {
+        label: "1 hunt → 3 real-time detections",
+        target: "#duke-energy",
+      },
+      firewall: {
+        label: "Tightened east-west ACLs across data centers",
+        target: "#regions-bank",
+      },
+      visibility: {
+        label: "Credential misuse signal-to-noise improved 2.6x",
+        target: "#impact",
+      },
     },
     mitre: [
       "T1105 | Ingress Tool Transfer",
       "T1569.002 | System Services: Service Execution",
       "T1136.001 | Create Account: Local Account",
     ],
+    telemetry: {
+      baseline: {
+        timeline: [
+          { label: "Sprint 1", value: 3 },
+          { label: "Sprint 2", value: 4 },
+          { label: "Sprint 3", value: 5 },
+          { label: "Sprint 4", value: 4 },
+        ],
+        matrix: [
+          { source: "SCCM", target: "Workstations", weight: 5 },
+          { source: "Service Accounts", target: "Servers", weight: 3 },
+        ],
+        heatmap: [
+          { label: "SCCM Deployments", value: 3, detail: "Signed packages with CMDB trace" },
+          { label: "Helpdesk Tools", value: 2, detail: "Approved remote assistance" },
+          { label: "Service Accounts", value: 4, detail: "Scoped to single domain" },
+          { label: "Audit Trails", value: 3, detail: "Ticket-linked execution" },
+        ],
+        packets: [
+          {
+            label: "SCCM ➝ Finance",
+            bytes: "640 KB",
+            detail: "Patch verification handshake",
+          },
+          {
+            label: "Helpdesk ➝ Corp",
+            bytes: "420 KB",
+            detail: "User-requested remote session",
+          },
+        ],
+        volume: 22,
+      },
+      anomaly: {
+        timeline: [
+          { label: "Sprint 1", value: 4 },
+          { label: "Sprint 2", value: 7 },
+          { label: "Sprint 3", value: 11 },
+          { label: "Sprint 4", value: 13 },
+        ],
+        matrix: [
+          { source: "Shadow Stacks", target: "Shared Services", weight: 6 },
+          { source: "Shadow Stacks", target: "OT", weight: 4 },
+        ],
+        heatmap: [
+          { label: "Portable Suites", value: 6, detail: "Unsigned executables" },
+          { label: "Credential Reuse", value: 5, detail: "Service accounts across domains" },
+          { label: "Temp Directories", value: 4, detail: "Dropper staging" },
+          { label: "Unapproved Hosts", value: 5, detail: "Shadow IT endpoints" },
+        ],
+        packets: [
+          {
+            label: "ShadowStack ➝ Shared",
+            bytes: "2.9 MB",
+            detail: "Remote admin tool lateral move",
+          },
+          {
+            label: "ShadowStack ➝ OT",
+            bytes: "2.1 MB",
+            detail: "Credential stuffing attempts",
+          },
+        ],
+        volume: 68,
+      },
+      notes: [
+        "Portable remote suites surfaced in temp directories lacking ticket references.",
+        "Credential sharing flagged across OT and corporate segments within 24h.",
+      ],
+    },
   },
   {
     id: "c2-ntp",
@@ -430,15 +668,92 @@ export const hunts = [
       },
     ],
     coverage: {
-      detections: "Added 2 correlation rules",
-      firewall: "Dynamic egress filters to sanctioned pools",
-      visibility: "Anomaly detection latency reduced to 3 minutes",
+      detections: {
+        label: "Added 2 correlation rules",
+        target: "#duke-energy",
+      },
+      firewall: {
+        label: "Dynamic egress filters to sanctioned pools",
+        target: "#regions-bank",
+      },
+      visibility: {
+        label: "Anomaly detection latency reduced to 3 minutes",
+        target: "#impact",
+      },
     },
     mitre: [
       "T1071.004 | Application Layer Protocol: NTP",
       "T1041 | Exfiltration Over C2 Channel",
       "T1568.002 | Dynamic Resolution: Domain Generation Algorithms",
     ],
+    telemetry: {
+      baseline: {
+        timeline: [
+          { label: "00:00", value: 9 },
+          { label: "00:05", value: 8 },
+          { label: "00:10", value: 9 },
+          { label: "00:15", value: 8 },
+        ],
+        matrix: [
+          { source: "Corporate Hosts", target: "Sanctioned Pools", weight: 8 },
+          { source: "OT Hosts", target: "Sanctioned Pools", weight: 5 },
+        ],
+        heatmap: [
+          { label: "Corporate Pools", value: 5, detail: "15-minute cadence" },
+          { label: "OT Pools", value: 4, detail: "Industrial controllers" },
+          { label: "DMZ", value: 3, detail: "Forwarding proxies" },
+          { label: "Timekeepers", value: 2, detail: "Authoritative stratum servers" },
+        ],
+        packets: [
+          {
+            label: "Plant-01 ➝ CorpPool",
+            bytes: "220 B",
+            detail: "Routine sync",
+          },
+          {
+            label: "RetailPOS ➝ CorpPool",
+            bytes: "260 B",
+            detail: "POS jitter allowance",
+          },
+        ],
+        volume: 72,
+      },
+      anomaly: {
+        timeline: [
+          { label: "00:00", value: 12 },
+          { label: "00:05", value: 18 },
+          { label: "00:10", value: 24 },
+          { label: "00:15", value: 27 },
+        ],
+        matrix: [
+          { source: "Compromised Hosts", target: "Dynamic Pools", weight: 9 },
+          { source: "Compromised Hosts", target: "Unknown Destinations", weight: 6 },
+        ],
+        heatmap: [
+          { label: "Dynamic Pools", value: 7, detail: "30s beacon cadence" },
+          { label: "Unknown Destinations", value: 6, detail: "DGAs rotating" },
+          { label: "Payload Size", value: 5, detail: "Above baseline thresholds" },
+          { label: "Beacon Burst", value: 6, detail: "Multi-host synchronization" },
+        ],
+        packets: [
+          {
+            label: "Host-44 ➝ RoguePool",
+            bytes: "880 B",
+            detail: "Stuffed payload detection",
+          },
+          {
+            label: "Host-61 ➝ Unknown",
+            bytes: "910 B",
+            detail: "Exfil attempt blocked",
+          },
+        ],
+        volume: 144,
+      },
+      notes: [
+        "Beacon cadence at 30-second intervals deviated from approved jitter windows.",
+        "Payload size anomalies signalled stuffed command channel attempts.",
+      ],
+    },
   },
   {
     id: "regsvr32",
@@ -469,15 +784,86 @@ export const hunts = [
       },
     ],
     coverage: {
-      detections: "Introduced behavioral signature coverage",
-      firewall: "Network isolation triggers for suspicious hosts",
-      visibility: "Regsvr32 misuse detection from 35% ➝ 92%",
+      detections: {
+        label: "Introduced behavioral signature coverage",
+        target: "#regions-bank",
+      },
+      firewall: {
+        label: "Network isolation triggers for suspicious hosts",
+        target: "#duke-energy",
+      },
+      visibility: {
+        label: "Regsvr32 misuse detection from 35% ➝ 92%",
+        target: "#impact",
+      },
     },
     mitre: [
       "T1218.010 | Signed Binary Proxy Execution: Regsvr32",
       "T1105 | Ingress Tool Transfer",
       "T1547.001 | Boot or Logon Autostart Execution: Registry Run Keys",
     ],
+    telemetry: {
+      baseline: {
+        timeline: [
+          { label: "Week 1", value: 2 },
+          { label: "Week 2", value: 3 },
+          { label: "Week 3", value: 3 },
+          { label: "Week 4", value: 2 },
+        ],
+        matrix: [
+          { source: "Signed Modules", target: "Managed Shares", weight: 4 },
+        ],
+        heatmap: [
+          { label: "Signed DLLs", value: 3, detail: "Managed file shares" },
+          { label: "Installer Windows", value: 2, detail: "Change-controlled deployments" },
+          { label: "CMDB Trace", value: 3, detail: "Asset mapped" },
+          { label: "Forensic Tags", value: 2, detail: "EDR baseline" },
+        ],
+        packets: [
+          {
+            label: "Installer ➝ Managed Share",
+            bytes: "520 KB",
+            detail: "Scheduled deployment",
+          },
+        ],
+        volume: 12,
+      },
+      anomaly: {
+        timeline: [
+          { label: "Week 1", value: 5 },
+          { label: "Week 2", value: 9 },
+          { label: "Week 3", value: 12 },
+          { label: "Week 4", value: 15 },
+        ],
+        matrix: [
+          { source: "Unsigned DLLs", target: "Remote Hosts", weight: 7 },
+          { source: "Unsigned DLLs", target: "Credential Dumping", weight: 5 },
+        ],
+        heatmap: [
+          { label: "HTTP Payloads", value: 6, detail: "Remote fetch prior to registration" },
+          { label: "Credential Dump", value: 5, detail: "Lsass access attempts" },
+          { label: "Persistence", value: 4, detail: "Registry autoruns" },
+          { label: "Isolation", value: 5, detail: "Automatic quarantine triggers" },
+        ],
+        packets: [
+          {
+            label: "Compromised Host ➝ Remote",
+            bytes: "3.4 MB",
+            detail: "DLL staging from malicious server",
+          },
+          {
+            label: "Compromised Host ➝ Internal",
+            bytes: "2.2 MB",
+            detail: "Credential dumping exfil blocked",
+          },
+        ],
+        volume: 84,
+      },
+      notes: [
+        "Proxy execution detected launching credential theft utilities within 90 seconds.",
+        "Isolation automation quarantined affected endpoints for forensic capture.",
+      ],
+    },
   },
   {
     id: "certutil",
@@ -508,15 +894,87 @@ export const hunts = [
       },
     ],
     coverage: {
-      detections: "Coverage expanded to 95% of certutil executions",
-      firewall: "Policy hardened for outbound data staging",
-      visibility: "Certutil misuse dwell time collapsed to <6 minutes",
+      detections: {
+        label: "Coverage expanded to 95% of certutil executions",
+        target: "#duke-energy",
+      },
+      firewall: {
+        label: "Policy hardened for outbound data staging",
+        target: "#regions-bank",
+      },
+      visibility: {
+        label: "Certutil misuse dwell time collapsed to <6 minutes",
+        target: "#impact",
+      },
     },
     mitre: [
       "T1105 | Ingress Tool Transfer",
       "T1567.002 | Exfiltration Over Web Service: Exfiltration to Cloud Storage",
       "T1140 | Deobfuscate/Decode Files or Information",
     ],
+    telemetry: {
+      baseline: {
+        timeline: [
+          { label: "Cycle 1", value: 4 },
+          { label: "Cycle 2", value: 5 },
+          { label: "Cycle 3", value: 4 },
+          { label: "Cycle 4", value: 5 },
+        ],
+        matrix: [
+          { source: "PKI Ops", target: "Trusted Destinations", weight: 6 },
+          { source: "PKI Ops", target: "Internal Stores", weight: 3 },
+        ],
+        heatmap: [
+          { label: "PKI Renewals", value: 4, detail: "Scheduled CA tasks" },
+          { label: "Trust Anchors", value: 3, detail: "Approved IP ranges" },
+          { label: "Bandwidth", value: 2, detail: "Under 5MB transfers" },
+          { label: "Audit Trails", value: 3, detail: "Ticket mapped" },
+        ],
+        packets: [
+          {
+            label: "CA-Primary ➝ Trusted",
+            bytes: "3.4 MB",
+            detail: "Certificate renewal bundle",
+          },
+        ],
+        volume: 36,
+      },
+      anomaly: {
+        timeline: [
+          { label: "Cycle 1", value: 8 },
+          { label: "Cycle 2", value: 12 },
+          { label: "Cycle 3", value: 18 },
+          { label: "Cycle 4", value: 22 },
+        ],
+        matrix: [
+          { source: "Unmanaged Hosts", target: "Cloud Storage", weight: 7 },
+          { source: "Unmanaged Hosts", target: "Raw IP", weight: 6 },
+        ],
+        heatmap: [
+          { label: "Raw IP", value: 6, detail: "Bypassed trusted anchors" },
+          { label: "Cloud Storage", value: 7, detail: "Exfil endpoints" },
+          { label: "Payload Size", value: 5, detail: "Base64 staging detected" },
+          { label: "Compression", value: 4, detail: "Large encoded blobs" },
+        ],
+        packets: [
+          {
+            label: "Host-220 ➝ Cloud",
+            bytes: "14.2 MB",
+            detail: "Encoded payload blocked",
+          },
+          {
+            label: "Host-220 ➝ RawIP",
+            bytes: "9.8 MB",
+            detail: "Data staging attempt",
+          },
+        ],
+        volume: 128,
+      },
+      notes: [
+        "Certutil observed fetching binaries from raw IP addresses with base64 staging.",
+        "Automation enforced revocation workflow and blocked unsanctioned destinations.",
+      ],
+    },
   },
 ];
 
@@ -665,7 +1123,7 @@ export const automationTickets = [
 export const deployCommands = {
   help: {
     response: [
-      "Available commands: schedule_debrief, download_brief, launch_qna, systems_check, battle_card, help",
+      "Available commands: schedule_debrief, download_brief, launch_qna, systems_check, battle_card, download_battle_card, help",
       "Use schedule_debrief --slot=<timeframe> to propose mission sync windows.",
     ],
   },
@@ -696,7 +1154,104 @@ export const deployCommands = {
   battle_card: {
     response: [
       "Decrypting Sterling's battle card with scenario quick hits and escalation protocols…",
-      "Download available: /assets/sterling-battle-card.pdf (placeholder link for recruiter delivery).",
+      "Intel overlay deployed. Use on-screen controls to export or dismiss.",
     ],
+  },
+  download_battle_card: {
+    response: [
+      "Generating interactive battle card snapshot…",
+      "Download initiated. Shareable HTML brief prepared for your records.",
+    ],
+  },
+};
+
+export const battleCardIntel = {
+  header: {
+    title: "Sterling Mission Battle Card",
+    subtitle: "Executive quick-brief for mission deployers",
+    meta: [
+      { label: "Role", value: "Security Operations Strategist" },
+      { label: "Base", value: "Charlotte, NC" },
+      { label: "Clearance", value: "Public Trust Eligible" },
+    ],
+  },
+  summary: [
+    {
+      label: "Mission Focus",
+      detail:
+        "High-severity incident command, adversary pursuit, and automation programs linking SOC, engineering, and leadership.",
+    },
+    {
+      label: "Signature Impact",
+      detail: "38% MTTR reduction, 5 operationalized hunts, 60% automation coverage across critical response flows.",
+    },
+    {
+      label: "Core Toolchains",
+      detail: "Splunk, CrowdStrike, Azure, ServiceNow, Elastic, custom Python automation, executive briefing frameworks.",
+    },
+  ],
+  engagements: [
+    {
+      organization: "Regions Bank",
+      timeframe: "2021 – Present",
+      objective: "Stabilize digital banking during coordinated intrusion attempts.",
+      highlights: [
+        "Coordinated legal, comms, and SOC stakeholders through live command bridge playbooks.",
+        "Mapped attack surface telemetry to remediation waves, prioritizing high-risk assets within hours.",
+        "Embedded continuous improvement loops that codified evidence, retros, and automation requirements.",
+      ],
+      outcomes: [
+        "38% reduction in critical-incident MTTR",
+        "6 cross-team playbooks activated",
+        "Executive confidence cadence established at 12-minute intervals",
+      ],
+    },
+    {
+      organization: "Duke Energy",
+      timeframe: "2018 – 2021",
+      objective: "Expose stealthy outbound movement and tune detections for critical infrastructure estates.",
+      highlights: [
+        "Executed hunts on outbound RDP/SSH, uncommon remote tools, C2 over NTP, regsvr32 proxy execution, and certutil misuse.",
+        "Partnered with engineering to operationalize detections and firewall guardrails based on hunt findings.",
+        "Rewired incident case flows with enrichment, routing, and collaboration automation.",
+      ],
+      outcomes: [
+        "5 high-fidelity hunts promoted into continuous monitoring",
+        "Alert noise trimmed by 28% post tuning",
+        "Automation saved 120 analyst hours per quarter",
+      ],
+    },
+  ],
+  hunts: [
+    {
+      title: "Outbound RDP / SSH sweeps",
+      insight: "Correlated Splunk baseline deviations with endpoint telemetry to flag unsanctioned lateral pivots.",
+      impact: "Drove adaptive firewall hardening and privileged session reviews within the same maintenance window.",
+    },
+    {
+      title: "Uncommon remote access tools",
+      insight: "Stacked rare parent-child process trees to uncover misused administration suites masquerading as support activity.",
+      impact: "Resulted in rapid EDR detection logic updates and enterprise-wide credential hygiene push.",
+    },
+    {
+      title: "C2 over NTP",
+      insight: "Analyzed jitter, payload size, and host clustering to isolate covert channels without disrupting legitimate synchronization.",
+      impact: "Surfaced bespoke detections and network policy adjustments covering industrial zones.",
+    },
+    {
+      title: "Regsvr32 proxy execution",
+      insight: "Reverse engineered LOLBin invocation chains to separate scripted deployments from adversarial living-off-the-land activity.",
+      impact: "Enabled responsive SOAR actions with automated isolation and leadership notifications.",
+    },
+    {
+      title: "Certutil misuse",
+      insight: "Trended certificate and binary fetch patterns to expose staging behaviors ahead of payload execution.",
+      impact: "Institutionalized detection-as-code contributions and tightened outbound inspection guardrails.",
+    },
+  ],
+  callToAction: {
+    headline: "Ready to deploy?",
+    detail:
+      "Engage schedule_debrief to coordinate a mission sync or download_brief for the executive slide-ready package.",
   },
 };
