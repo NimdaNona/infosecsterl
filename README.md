@@ -11,6 +11,7 @@ The project is implemented as a static web experience. To preview locally, open 
 - **Cinematic landing** with animated starfield, dynamic counters, and HUD telemetry.
 - **Mission Control hub** with an orbital dossier navigator, kinetic cursor, and keyboard-accessible wireframe schematics toggle.
 - **Regions Bank simulations** including live incident orchestration, attack surface intelligence mesh, and continuous improvement loop explorer.
+- **Interactive attack-surface countermeasures** letting visitors deploy Sterling's remediation waves, visualize risk links, and watch residual risk fall in real time.
 - **Executive brief timeline** chronicling leadership updates across the Regions Bank escalation with expandable highlights.
 - **Duke Energy simulations** covering tier-0 threat hunts with MITRE ATT&CK overlays, EDR tuning lab, and automation workflow conveyor.
 - **Threat hunt intel toggles** contrasting baseline behavior vs. suspicious indicators for each hunt scenario.

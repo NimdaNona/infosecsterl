@@ -758,39 +758,283 @@ function renderBriefingLog() {
 function renderSurfaceGrid() {
   const grid = select(".surface-grid");
   const details = select("#surface-details");
+  if (!grid || !details) return;
+
+  details.setAttribute("aria-live", "polite");
+  details.setAttribute("role", "region");
+  details.setAttribute("tabindex", "-1");
+
+  const svgNS = "http://www.w3.org/2000/svg";
+  const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+  const nodesById = new Map(surfaceNodes.map((node) => [node.id, node]));
+  const nodeStates = new Map(surfaceNodes.map((node) => [node.id, { deployed: false }]));
+  const nodeElements = new Map();
+  const linkElements = new Map();
+
+  const riskScores = {
+    high: 86,
+    medium: 58,
+    low: 24,
+  };
+
+  grid.innerHTML = "";
+  grid.classList.add("surface-grid--enhanced");
+
+  const svg = document.createElementNS(svgNS, "svg");
+  svg.classList.add("surface-grid__mesh");
+  svg.setAttribute("viewBox", "0 0 100 64");
+  svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
+  svg.setAttribute("aria-hidden", "true");
+
+  const defs = document.createElementNS(svgNS, "defs");
+  const gradient = document.createElementNS(svgNS, "linearGradient");
+  gradient.id = "surface-link-gradient";
+  gradient.setAttribute("x1", "0%");
+  gradient.setAttribute("y1", "0%");
+  gradient.setAttribute("x2", "100%");
+  gradient.setAttribute("y2", "100%");
+
+  const stopA = document.createElementNS(svgNS, "stop");
+  stopA.setAttribute("offset", "0%");
+  stopA.setAttribute("stop-color", "rgba(126,255,245,0.05)");
+  gradient.appendChild(stopA);
+
+  const stopB = document.createElementNS(svgNS, "stop");
+  stopB.setAttribute("offset", "50%");
+  stopB.setAttribute("stop-color", "rgba(126,255,245,0.25)");
+  gradient.appendChild(stopB);
+
+  const stopC = document.createElementNS(svgNS, "stop");
+  stopC.setAttribute("offset", "100%");
+  stopC.setAttribute("stop-color", "rgba(255,122,203,0.22)");
+  gradient.appendChild(stopC);
+
+  const glowFilter = document.createElementNS(svgNS, "filter");
+  glowFilter.id = "surface-node-glow";
+  glowFilter.setAttribute("x", "-40%");
+  glowFilter.setAttribute("y", "-40%");
+  glowFilter.setAttribute("width", "180%");
+  glowFilter.setAttribute("height", "180%");
+
+  const blur = document.createElementNS(svgNS, "feGaussianBlur");
+  blur.setAttribute("stdDeviation", "2.8");
+  blur.setAttribute("result", "coloredBlur");
+  glowFilter.appendChild(blur);
+
+  const feMerge = document.createElementNS(svgNS, "feMerge");
+  const feMergeNode1 = document.createElementNS(svgNS, "feMergeNode");
+  feMergeNode1.setAttribute("in", "coloredBlur");
+  const feMergeNode2 = document.createElementNS(svgNS, "feMergeNode");
+  feMergeNode2.setAttribute("in", "SourceGraphic");
+  feMerge.appendChild(feMergeNode1);
+  feMerge.appendChild(feMergeNode2);
+  glowFilter.appendChild(feMerge);
+
+  defs.appendChild(gradient);
+  defs.appendChild(glowFilter);
+  svg.appendChild(defs);
 
   surfaceNodes.forEach((node) => {
-    const button = document.createElement("button");
-    button.className = "surface-node";
-    button.type = "button";
-    button.dataset.risk = node.risk;
-    button.dataset.nodeId = node.id;
-    button.innerHTML = `<span>${node.label}</span>`;
-    grid.appendChild(button);
+    (node.connections ?? []).forEach((targetId) => {
+      if (!nodesById.has(targetId)) return;
+      const target = nodesById.get(targetId);
+      if (!target?.position || !node.position) return;
+      const key = [node.id, targetId].sort().join("__");
+      if (linkElements.has(key)) return;
+      const line = document.createElementNS(svgNS, "line");
+      line.classList.add("surface-link");
+      line.dataset.link = key;
+      line.setAttribute("x1", node.position.x);
+      line.setAttribute("y1", node.position.y);
+      line.setAttribute("x2", target.position.x);
+      line.setAttribute("y2", target.position.y);
+      line.setAttribute("stroke", "url(#surface-link-gradient)");
+      line.setAttribute("stroke-width", "0.65");
+      line.setAttribute("stroke-linecap", "round");
+      svg.appendChild(line);
+      linkElements.set(key, line);
+    });
   });
 
-  function updateDetails(nodeId) {
-    const node = surfaceNodes.find((item) => item.id === nodeId);
-    if (!node) return;
-    selectAll(".surface-node", grid).forEach((button) => {
-      button.classList.toggle("surface-node--active", button.dataset.nodeId === nodeId);
-    });
-    details.innerHTML = `
-      <h4>${node.label}</h4>
-      <p><strong>Risk Level:</strong> ${node.risk.toUpperCase()}</p>
-      <p><strong>Baseline:</strong> ${node.intel.baseline}</p>
-      <p><strong>Action:</strong> ${node.intel.action}</p>
-      <p><strong>Outcome:</strong> ${node.intel.outcome}</p>
-    `;
+  grid.appendChild(svg);
+
+  const nodeLayer = document.createElement("div");
+  nodeLayer.className = "surface-grid__nodes";
+  grid.appendChild(nodeLayer);
+
+  function scoreRisk(level) {
+    return riskScores[level] ?? 48;
   }
 
-  grid.addEventListener("click", (event) => {
-    const node = event.target.closest(".surface-node");
+  function titleCase(value = "") {
+    return value.charAt(0).toUpperCase() + value.slice(1);
+  }
+
+  function highlightNode(nodeId) {
+    nodeElements.forEach((element, id) => {
+      element.classList.toggle("surface-node--active", id === nodeId);
+    });
+    linkElements.forEach((line, key) => {
+      line.classList.toggle("surface-link--active", key.includes(nodeId));
+    });
+  }
+
+  function deployCountermeasure(nodeId) {
+    const node = nodesById.get(nodeId);
+    if (!node?.countermeasure) return;
+    const state = nodeStates.get(nodeId);
+    if (state?.deployed) return;
+
+    state.deployed = true;
+    const element = nodeElements.get(nodeId);
+    if (element) {
+      element.classList.add("surface-node--stabilized");
+      element.dataset.risk = node.countermeasure.residualRisk ?? node.risk;
+      const pulse = element.querySelector(".surface-node__pulse");
+      pulse?.classList.add("surface-node__pulse--deployed");
+
+      const ripple = document.createElement("span");
+      ripple.className = "surface-node__ripple";
+      element.appendChild(ripple);
+      requestAnimationFrame(() => {
+        ripple.classList.add("surface-node__ripple--animate");
+      });
+      ripple.addEventListener("animationend", () => ripple.remove());
+    }
+
+    audioManager?.playEffect?.("focus");
+    highlightNode(nodeId);
+    updateDetails(nodeId, { focusDeploy: true });
+  }
+
+  function updateDetails(nodeId, { focusDeploy = false } = {}) {
+    const node = nodesById.get(nodeId);
     if (!node) return;
-    updateDetails(node.dataset.nodeId);
+    const state = nodeStates.get(nodeId) ?? { deployed: false };
+    const deployed = state.deployed;
+    const residualRisk = deployed && node.countermeasure?.residualRisk ? node.countermeasure.residualRisk : node.risk;
+    const riskScore = scoreRisk(residualRisk);
+
+    currentNode = nodeId;
+    grid.dataset.activeNode = nodeId;
+    highlightNode(nodeId);
+
+    details.innerHTML = `
+      <h4>${node.label}</h4>
+      <p class="surface-details__lede">${node.intel.baseline}</p>
+      <dl class="surface-details__list">
+        <div>
+          <dt>Action Plan</dt>
+          <dd>${node.intel.action}</dd>
+        </div>
+        <div>
+          <dt>Impact</dt>
+          <dd>${node.intel.outcome}</dd>
+        </div>
+      </dl>
+      <div class="surface-risk">
+        <div class="surface-risk__header">
+          <span>Residual Risk</span>
+          <span>${titleCase(residualRisk)}</span>
+        </div>
+        <div class="surface-risk__meter" role="img" aria-label="Residual risk score ${riskScore} out of 100">
+          <span class="surface-risk__fill" style="width:${riskScore}%"></span>
+        </div>
+      </div>
+    `;
+
+    if (node.countermeasure) {
+      const counter = document.createElement("div");
+      counter.className = "surface-countermeasure";
+      counter.innerHTML = `
+        <h5>${node.countermeasure.label}</h5>
+        <p>${node.countermeasure.effect}</p>
+      `;
+
+      if (!deployed) {
+        const deployButton = document.createElement("button");
+        deployButton.type = "button";
+        deployButton.className = "chip surface-countermeasure__button";
+        deployButton.textContent = "Deploy Countermeasure";
+        deployButton.addEventListener("click", () => deployCountermeasure(nodeId));
+        counter.appendChild(deployButton);
+        if (focusDeploy) {
+          deployButton.focus();
+        }
+      } else {
+        const status = document.createElement("span");
+        status.className = "surface-countermeasure__status";
+        status.textContent = "Countermeasure active";
+        counter.appendChild(status);
+        if (focusDeploy) {
+          status.tabIndex = -1;
+          status.focus();
+        }
+      }
+
+      details.appendChild(counter);
+    }
+  }
+
+  surfaceNodes.forEach((node, index) => {
+    if (!node.position) return;
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "surface-node";
+    button.dataset.nodeId = node.id;
+    button.dataset.risk = node.risk;
+    button.style.left = `${node.position.x}%`;
+    button.style.top = `${node.position.y}%`;
+    button.innerHTML = `
+      <span class="surface-node__pulse" aria-hidden="true"></span>
+      <span class="surface-node__label">${node.label}</span>
+    `;
+    button.setAttribute("aria-label", `${node.label} asset node, ${node.risk} risk`);
+
+    button.addEventListener("click", () => updateDetails(node.id));
+    button.addEventListener("focus", () => updateDetails(node.id));
+    button.addEventListener("mouseenter", () => highlightNode(node.id));
+    button.addEventListener("mouseleave", () => {
+      if (currentNode) highlightNode(currentNode);
+    });
+
+    nodeLayer.appendChild(button);
+    nodeElements.set(node.id, button);
+
+    if (index === 0) {
+      grid.dataset.activeNode = node.id;
+    }
   });
 
-  updateDetails(surfaceNodes[0].id);
+  let currentNode = surfaceNodes[0]?.id ?? null;
+
+  if (currentNode) {
+    updateDetails(currentNode);
+  }
+
+  motionQuery.addEventListener("change", () => {
+    nodeElements.forEach((element) => {
+      element.classList.toggle("surface-node--static", motionQuery.matches);
+    });
+  });
+
+  if (motionQuery.matches) {
+    nodeElements.forEach((element) => element.classList.add("surface-node--static"));
+  }
+
+  grid.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    const target = event.target.closest(".surface-node");
+    if (!target) return;
+    event.preventDefault();
+    updateDetails(target.dataset.nodeId);
+  });
+
+  grid.addEventListener("surface:deploy", (event) => {
+    const { nodeId } = event.detail ?? {};
+    if (!nodeId) return;
+    deployCountermeasure(nodeId);
+  });
 }
 
 function renderLoop() {
