@@ -1,0 +1,11 @@
+{
+  "name": "sterling-mission-command",
+  "version": "1.0.0",
+  "description": "Immersive static experience demonstrating Sterling Thompson's cyber operations impact.",
+  "scripts": {
+    "preview": "python3 -m http.server 4173"
+  },
+  "keywords": ["cybersecurity", "portfolio", "interactive", "sterling"],
+  "author": "Sterling Thompson",
+  "license": "MIT"
+}
