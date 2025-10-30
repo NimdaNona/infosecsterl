@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sterling Mission Command</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles/global.css" />
+    <link rel="stylesheet" href="styles/layout.css" />
+    <link rel="stylesheet" href="styles/components.css" />
+  </head>
+  <body>
+    <div id="app" class="app-shell">
+      <div id="cursor" class="mission-cursor" aria-hidden="true"></div>
+      <canvas id="hero-canvas" class="hero-canvas" aria-hidden="true"></canvas>
+      <header class="hud" role="banner">
+        <div class="hud__logo">Sterling Mission Command</div>
+        <nav class="hud__telemetry" aria-label="Mission telemetry">
+          <div class="telemetry__item">
+            <span class="telemetry__label">Years Active</span>
+            <span class="telemetry__value" data-metric="years">6</span>
+          </div>
+          <div class="telemetry__item">
+            <span class="telemetry__label">Critical Missions</span>
+            <span class="telemetry__value" data-metric="missions">12</span>
+          </div>
+          <div class="telemetry__item">
+            <span class="telemetry__label">Automation Hours Saved</span>
+            <span class="telemetry__value" data-metric="hours">480</span>
+          </div>
+          <div class="hud__audio-controls" role="group" aria-label="Audio channels">
+            <button
+              class="hud__audio"
+              data-audio-channel="ambience"
+              type="button"
+              aria-pressed="false"
+            >
+              <span class="hud__audio-label">Ambience</span>
+              <span class="hud__audio-indicator" aria-hidden="true"></span>
+            </button>
+            <button
+              class="hud__audio"
+              data-audio-channel="effects"
+              type="button"
+              aria-pressed="false"
+            >
+              <span class="hud__audio-label">Effects</span>
+              <span class="hud__audio-indicator" aria-hidden="true"></span>
+            </button>
+            <button
+              class="hud__audio"
+              data-audio-channel="voice"
+              type="button"
+              aria-pressed="false"
+            >
+              <span class="hud__audio-label">Voice</span>
+              <span class="hud__audio-indicator" aria-hidden="true"></span>
+            </button>
+          </div>
+        </nav>
+      </header>
+
+      <main id="main" class="main-content" tabindex="-1">
+        <section id="landing" class="section landing" aria-labelledby="landing-title">
+          <div class="landing__content">
+            <h1 id="landing-title" class="landing__title">
+              Mission Initiated: Defend, Hunt, and Accelerate Resilience
+            </h1>
+            <p class="landing__lead">
+              Step inside Sterling's cyber command where incidents unfold, hunts evolve,
+              and automation redefines velocity. Engage with decision-grade intelligence
+              to witness the exact outcomes delivered at Regions Bank and Duke Energy.
+            </p>
+            <button class="cta" data-scroll="#mission-control">
+              <span>Begin Mission</span>
+              <span class="cta__pulse" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div class="landing__hud">
+            <div class="stat-card">
+              <span class="stat-card__label">Incident MTTR Reduction</span>
+              <span class="stat-card__value" data-counter="38" data-counter-type="percent">0%</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-card__label">Threat Hunts Operationalized</span>
+              <span class="stat-card__value" data-counter="5">0</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-card__label">Automation Coverage</span>
+              <span class="stat-card__value" data-counter="60" data-counter-type="percent">0%</span>
+            </div>
+          </div>
+        </section>
+
+        <section id="mission-control" class="section mission-control" aria-labelledby="mission-title">
+          <div class="section__header">
+            <h2 id="mission-title">Mission Control</h2>
+            <p>Navigate live dossiers spanning enterprise threat surfaces. Drag to explore, select to deploy.</p>
+          </div>
+          <div class="mission-control__layout">
+            <div class="mission-control__orbital" id="mission-orbit" tabindex="0" aria-label="Mission dossiers">
+              <canvas id="mission-orbit-canvas" aria-hidden="true"></canvas>
+              <div class="mission-control__overlay" id="mission-orbit-overlay" aria-hidden="true"></div>
+              <div class="mission-control__fallback" id="mission-orbit-fallback" role="list"></div>
+            </div>
+            <aside class="mission-control__panel" id="mission-panel">
+              <h3>Hover a dossier to preview operations.</h3>
+              <p>Each mission reveals Sterling's orchestration, tooling, and measurable outcomes.</p>
+              <p class="mission-control__hint" data-panel-status aria-live="polite">
+                Focus the orbit and press space to toggle wireframe schematics. Use arrow keys to adjust rotation speed.
+              </p>
+              <dl class="mission-control__metrics" id="mission-metrics"></dl>
+            </aside>
+          </div>
+          <div class="mission-control__deck" id="mission-list" role="list"></div>
+        </section>
+
+        <section id="regions-bank" class="section theater" aria-labelledby="regions-title">
+          <div class="section__header">
+            <h2 id="regions-title">Regions Bank Ops Theater</h2>
+            <p>Immerse in the orchestrated responses that shielded financial operations under fire.</p>
+          </div>
+          <div class="theater__grid">
+            <article class="simulation" aria-labelledby="incident-sim-title">
+              <header>
+                <h3 id="incident-sim-title">Live Incident Orchestration</h3>
+                <p>Lead the command bridge through a live escalation. Decide, brief, and contain.</p>
+              </header>
+              <div class="simulation__body">
+                <div class="incident-map" role="application" aria-label="Incident escalation map">
+                  <svg
+                    id="incident-map-canvas"
+                    class="incident-map__canvas"
+                    viewBox="0 0 100 100"
+                    role="img"
+                    aria-labelledby="incident-sim-title"
+                  ></svg>
+                  <div class="incident-map__controls">
+                    <button
+                      type="button"
+                      class="chip chip--small incident-map__play"
+                      id="incident-play"
+                      aria-pressed="false"
+                    >
+                      Auto-Play Timeline
+                    </button>
+                    <label class="sr-only" for="incident-scrub">Timeline position</label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="0"
+                      value="0"
+                      step="1"
+                      id="incident-scrub"
+                      class="incident-map__scrub"
+                      aria-label="Incident timeline position"
+                    />
+                  </div>
+                  <div class="incident-map__timeline" id="incident-timeline" aria-live="polite"></div>
+                  <div class="incident-map__decision" id="incident-decisions"></div>
+                </div>
+                <div class="decision-panel" id="incident-panel"></div>
+                <section class="briefing-log" aria-labelledby="briefing-title">
+                  <div class="briefing-log__header">
+                    <h4 id="briefing-title">Executive Brief Stream</h4>
+                    <p>Replay the cadence of leadership updates that preserved confidence during the escalation.</p>
+                  </div>
+                  <ol class="briefing-log__list" id="briefing-list"></ol>
+                </section>
+              </div>
+              <footer class="simulation__footer">
+                <p>Outcome: Incident contained within 47 minutes, executive stakeholders briefed every 12 minutes.</p>
+              </footer>
+            </article>
+
+            <article class="simulation" aria-labelledby="surface-title">
+              <header>
+                <h3 id="surface-title">Attack Surface Intelligence Console</h3>
+                <p>Explore enterprise assets, deploy targeted countermeasures, and watch risk fall.</p>
+              </header>
+              <div class="simulation__body">
+                <div class="surface-grid" role="application" aria-label="Asset risk mesh"></div>
+                <aside class="surface-details" id="surface-details">
+                  <h4>Asset Intel</h4>
+                  <p>Select a node to review Sterling's remediation blueprint.</p>
+                </aside>
+              </div>
+              <footer class="simulation__footer">
+                <p>Exposure reduction: 31% across crown-jewel assets; remediation SLAs tightened by 22%.</p>
+              </footer>
+            </article>
+
+            <article class="simulation" aria-labelledby="loop-title">
+              <header>
+                <h3 id="loop-title">Continuous Improvement Loop</h3>
+                <p>Traverse the evidence-driven loop accelerating playbook evolution.</p>
+              </header>
+              <div class="simulation__body">
+                <div class="loop" role="application" aria-label="Continuous improvement loop">
+                  <button class="loop__segment" data-loop="detect">Detect</button>
+                  <button class="loop__segment" data-loop="investigate">Investigate</button>
+                  <button class="loop__segment" data-loop="respond">Respond</button>
+                  <button class="loop__segment" data-loop="review">Review</button>
+                  <button class="loop__segment" data-loop="improve">Improve</button>
+                </div>
+                <div class="loop__meta">
+                  <div class="loop__details" id="loop-details">
+                    <h4>Loop Intelligence</h4>
+                    <p>Engage phases to uncover the assets Sterling produced.</p>
+                  </div>
+                  <aside class="loop__achievements" id="loop-achievements" aria-live="polite">
+                    <p class="loop__achievements-lede" id="loop-achievements-lede">
+                      Progress through each phase to reveal institutional achievements.
+                    </p>
+                    <ul class="loop__achievements-list" id="loop-achievements-list" role="list"></ul>
+                  </aside>
+                </div>
+              </div>
+              <footer class="simulation__footer">
+                <p>Institutionalized after-action programs raised readiness scores by 24% quarter-over-quarter.</p>
+              </footer>
+            </article>
+          </div>
+        </section>
+
+        <section id="duke-energy" class="section theater" aria-labelledby="duke-title">
+          <div class="section__header">
+            <h2 id="duke-title">Duke Energy Ops Theater</h2>
+            <p>Launch hunts, tune signals, and watch automation rewire the response pipeline.</p>
+          </div>
+          <div class="theater__grid">
+            <article class="simulation" aria-labelledby="hunt-title">
+              <header>
+                <h3 id="hunt-title">Threat Hunting Command Deck</h3>
+                <p>Deploy hunts targeting advanced tradecraft across outbound protocols and LOLBins.</p>
+              </header>
+              <div class="simulation__body">
+                <div class="hunt-console" aria-label="Threat hunt console">
+                  <div class="hunt-queue" id="hunt-queue" role="tablist" aria-label="Available hunts"></div>
+                  <div class="hunt-terminal" id="hunt-terminal" role="tabpanel"></div>
+                </div>
+              </div>
+              <footer class="simulation__footer">
+                <p>Hunts revealed 12 misconfigurations, produced 4 high-fidelity detections, and enforced 3 firewall uplifts.</p>
+              </footer>
+            </article>
+
+            <article class="simulation" aria-labelledby="edr-title">
+              <header>
+                <h3 id="edr-title">EDR Content Tuning Lab</h3>
+                <p>Adjust thresholds to balance fidelity and noise while preserving analyst focus.</p>
+              </header>
+              <div class="simulation__body">
+                <div class="edr-lab">
+                  <div class="edr-gauge">
+                    <div class="edr-needle" id="edr-needle" aria-hidden="true"></div>
+                    <div class="edr-scale">
+                      <span>Noise</span>
+                      <span>Optimal</span>
+                      <span>Blind</span>
+                    </div>
+                  </div>
+                  <input type="range" min="0" max="100" value="35" id="edr-slider" aria-label="Detection sensitivity" />
+                  <div class="edr-stats" id="edr-stats">
+                    <p><strong>False Positives:</strong> 62 ➝ 28 per week</p>
+                    <p><strong>Detection Coverage:</strong> 68% ➝ 92%</p>
+                    <p><strong>Analyst Focus Time Gained:</strong> +18 hrs/week</p>
+                  </div>
+                </div>
+              </div>
+              <footer class="simulation__footer">
+                <p>Tuning and automation uplift trimmed alert noise by 28% and supercharged response precision.</p>
+              </footer>
+            </article>
+
+            <article class="simulation" aria-labelledby="automation-title">
+              <header>
+                <h3 id="automation-title">Automation Workflow Conveyor</h3>
+                <p>Activate orchestration modules to visualize enriched, accelerated case flow.</p>
+              </header>
+              <div class="simulation__body">
+                <div class="automation-line" role="application" aria-label="Automation workflow">
+                  <div class="automation-track" id="automation-track"></div>
+                  <div class="automation-controls">
+                    <label><input type="checkbox" data-automation="enrichment" checked /> Enrichment Engine</label>
+                    <label><input type="checkbox" data-automation="routing" checked /> Adaptive Routing</label>
+                    <label><input type="checkbox" data-automation="collab" checked /> Collaboration Bridge</label>
+                  </div>
+                </div>
+                <aside class="automation-stats" id="automation-stats">
+                  <p><strong>MTTR:</strong> 4.5h ➝ 2.8h</p>
+                  <p><strong>Analyst Hours Saved:</strong> 120 per quarter</p>
+                  <p><strong>Stakeholder Satisfaction:</strong> +19 NPS</p>
+                </aside>
+              </div>
+              <footer class="simulation__footer">
+                <p>Automation pipelines institutionalized consistent context, delivering 38% faster incident closures.</p>
+              </footer>
+            </article>
+          </div>
+        </section>
+
+        <section id="skills" class="section skills" aria-labelledby="skills-title">
+          <div class="section__header">
+            <h2 id="skills-title">Skill Hologram Gallery</h2>
+            <p>Orbit Sterling's core competencies and drop into the evidence of mastery.</p>
+          </div>
+          <div class="skills__halo" id="skills-halo">
+            <div class="skills__ring" id="skills-ring" role="list"></div>
+            <article class="skills__focus" id="skills-focus" aria-live="polite">
+              <p class="skills__focus-signal" id="skills-focus-signal"></p>
+              <h3 class="skills__focus-title" id="skills-focus-title"></h3>
+              <p class="skills__focus-description" id="skills-focus-description"></p>
+              <div class="skills__focus-heat" id="skills-focus-heat" aria-hidden="true"></div>
+              <ul class="skills__focus-artifacts" id="skills-focus-artifacts"></ul>
+              <button class="chip chip--small" id="skills-focus-cta" type="button">View mission evidence</button>
+            </article>
+          </div>
+          <div class="skills__legend" id="skills-legend" role="list"></div>
+        </section>
+
+        <section id="impact" class="section impact" aria-labelledby="impact-title">
+          <div class="section__header">
+            <h2 id="impact-title">Impact Command Center</h2>
+            <p>Quantify the measurable outcomes across missions. Filter signals to align with your priorities.</p>
+          </div>
+          <div class="impact__overview" id="impact-overview" role="list"></div>
+          <div class="impact__trends" id="impact-trends" role="list"></div>
+          <div class="impact__controls" role="tablist" aria-label="Impact filters">
+            <button class="chip chip--active" data-impact-filter="all" role="tab" aria-selected="true">All</button>
+            <button class="chip" data-impact-filter="regions" role="tab">Regions Bank</button>
+            <button class="chip" data-impact-filter="duke" role="tab">Duke Energy</button>
+            <button class="chip" data-impact-filter="automation" role="tab">Automation</button>
+          </div>
+          <div class="impact__grid" id="impact-grid" role="tabpanel"></div>
+          <div class="impact__milestones" id="impact-milestones" role="list"></div>
+        </section>
+
+        <section id="deploy" class="section deploy" aria-labelledby="deploy-title">
+          <div class="section__header">
+            <h2 id="deploy-title">Deploy Sterling</h2>
+            <p>Initiate deployment commands to schedule a debrief, obtain mission briefings, or launch Q&A.</p>
+          </div>
+          <div class="deploy__console" role="application" aria-label="Deployment console">
+            <div class="deploy__output" id="deploy-output" aria-live="polite"></div>
+            <div class="deploy__input">
+              <label class="sr-only" for="deploy-command">Enter command</label>
+              <input id="deploy-command" type="text" autocomplete="off" placeholder="> enter command" />
+              <button id="deploy-submit" class="cta">
+                <span>Execute</span>
+              </button>
+            </div>
+          </div>
+        </section>
+      </main>
+      <section class="narration" id="narration" aria-label="Narration console">
+        <div class="narration__header">
+          <span class="narration__title">Narration Channel</span>
+          <button
+            class="chip chip--small narration__toggle"
+            type="button"
+            id="narration-toggle"
+            aria-expanded="false"
+            aria-controls="narration-log"
+          >
+            Transcript
+          </button>
+        </div>
+        <div class="narration__live" role="status" aria-live="polite">
+          <span class="narration__context" id="narration-context"></span>
+          <p class="narration__line" id="narration-line"></p>
+        </div>
+        <ol class="narration__log" id="narration-log" hidden></ol>
+      </section>
+      <div id="battle-card" class="battle-card" hidden aria-hidden="true">
+        <button
+          class="battle-card__backdrop"
+          type="button"
+          data-battle-card-dismiss
+          aria-label="Dismiss battle card overlay"
+        ></button>
+        <article
+          class="battle-card__panel"
+          id="battle-card-panel"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="battle-card-title"
+        >
+          <header class="battle-card__header">
+            <div class="battle-card__headline">
+              <p class="battle-card__eyebrow">Rapid deployment brief</p>
+              <h2 id="battle-card-title"></h2>
+              <p class="battle-card__subtitle" id="battle-card-subtitle"></p>
+            </div>
+            <dl class="battle-card__meta" id="battle-card-meta"></dl>
+            <button class="battle-card__close" type="button" data-battle-card-dismiss aria-label="Close battle card">
+              <span aria-hidden="true">✕</span>
+            </button>
+          </header>
+          <div class="battle-card__body" id="battle-card-body"></div>
+          <footer class="battle-card__footer">
+            <button class="cta cta--outline" type="button" id="battle-card-download">
+              <span>Download HTML Brief</span>
+            </button>
+            <button class="chip chip--small" type="button" data-battle-card-dismiss>Dismiss</button>
+          </footer>
+        </article>
+      </div>
+      <nav class="timeline" id="timeline" aria-label="Experience progression">
+        <ol class="timeline__list" id="timeline-list"></ol>
+        <div class="timeline__intel" id="timeline-intel" role="status" aria-live="polite"></div>
+      </nav>
+      <footer class="footer">
+        <p>© <span id="footer-year"></span> Sterling Thompson. Mission readiness authenticated.</p>
+        <a href="#landing" class="back-to-top">Return to Landing</a>
+      </footer>
+    </div>
+    <script src="scripts/data.js" type="module"></script>
+    <script src="scripts/app.js" type="module"></script>
+  </body>
+</html>
