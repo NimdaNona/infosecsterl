@@ -18,9 +18,9 @@ The project is implemented as a static web experience. To preview locally, open 
 - **Threat hunt intel toggles** contrasting baseline behavior vs. suspicious indicators for each hunt scenario.
 - **Adaptive hunt terminal** that replays Splunk/EDR queries with a typewriter effect and honors reduced-motion preferences.
 - **Narration console** delivering synthesized mission callouts, transcripts, and contextual guidance synchronized with user actions.
-- **Skill hologram gallery** mapping core competencies to tangible artifacts.
+- **Skill hologram gallery** with a 3D orbital carousel, live mission focus console, and magnetic tilt interactions that spotlight mastery evidence.
 - **Interactive skill orbit** letting reviewers jump directly to the mission sections that evidence each competency.
-- **Impact command center** with filterable outcome dashboards and a persistent mission timeline ribbon.
+- **Impact command center** featuring dynamic gauges, sparklines, and milestone dossiers that filter alongside the outcome grid and mission timeline ribbon.
 - **Deployment console CTA** mimicking a secure terminal for next-step engagement, complete with a `battle_card` quick-brief command.
 - **Battle card overlay & export** delivering an on-screen executive briefing with an accessible `download_battle_card` HTML export instead of binary assets.
 

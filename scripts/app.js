@@ -11,6 +11,7 @@ import {
   hunts,
   skills,
   impactSignals,
+  impactTelemetry,
   automationTickets,
   deployCommands,
   battleCardIntel,
@@ -54,6 +55,19 @@ const narrationToggle = select("#narration-toggle");
 const narrationLine = select("#narration-line");
 const narrationContext = select("#narration-context");
 const narrationLog = select("#narration-log");
+const skillsHalo = select("#skills-halo");
+const skillsRing = select("#skills-ring");
+const skillsFocus = select("#skills-focus");
+const skillsFocusSignal = select("#skills-focus-signal");
+const skillsFocusTitle = select("#skills-focus-title");
+const skillsFocusDescription = select("#skills-focus-description");
+const skillsFocusArtifacts = select("#skills-focus-artifacts");
+const skillsFocusHeat = select("#skills-focus-heat");
+const skillsFocusCta = select("#skills-focus-cta");
+const skillsLegend = select("#skills-legend");
+const impactOverview = select("#impact-overview");
+const impactTrends = select("#impact-trends");
+const impactMilestones = select("#impact-milestones");
 
 let audioManager;
 let missionOrbitInstance;
@@ -1573,50 +1587,420 @@ function renderAutomation() {
 }
 
 function renderSkills() {
-  const carousel = select(".skills__carousel");
-  skills.forEach((skill) => {
-    const card = document.createElement("article");
-    card.className = "skill-card";
-    card.tabIndex = 0;
-    if (skill.target) {
-      card.dataset.scroll = skill.target;
+  if (!skillsRing || !skillsFocus) return;
+
+  skillsRing.innerHTML = "";
+  if (skillsLegend) skillsLegend.innerHTML = "";
+  if (skillsFocusArtifacts) skillsFocusArtifacts.innerHTML = "";
+
+  const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+  let reduceMotion = motionQuery.matches;
+  let autoRotate = !reduceMotion;
+  let rotation = 0;
+  let raf;
+  let resumeTimeout;
+  let activeSkill = null;
+
+  const total = skills.length || 1;
+  const baseAngle = total ? 360 / total : 0;
+  const cardMap = new Map();
+  const legendMap = new Map();
+
+  const setRotation = (value) => {
+    rotation = value;
+    skillsRing.style.setProperty("--rotation", `${rotation}deg`);
+  };
+
+  const alignToSkill = (skill) => {
+    const index = skills.findIndex((entry) => entry.id === skill.id);
+    if (index < 0) return;
+    const targetRotation = -index * baseAngle;
+    setRotation(targetRotation);
+  };
+
+  const updateFocus = (skill, { silent = false } = {}) => {
+    if (!skill) return;
+    activeSkill = skill;
+    skillsRing.dataset.active = skill.id;
+    if (skillsFocusSignal) skillsFocusSignal.textContent = skill.signal;
+    if (skillsFocusTitle) skillsFocusTitle.textContent = skill.name;
+    if (skillsFocusDescription) skillsFocusDescription.textContent = skill.description;
+    if (skillsFocusArtifacts) {
+      skillsFocusArtifacts.innerHTML = skill.artifacts.map((artifact) => `<li>${artifact}</li>`).join("");
     }
-    card.innerHTML = `
-      <div class="skill-card__badge">${skill.signal}</div>
-      <h3 class="skill-card__title">${skill.name}</h3>
-      <p>${skill.description}</p>
-      <div class="skill-card__heatmap">
-        ${Array.from({ length: 5 })
-          .map((_, index) => `<div class="heatmap-bar"><span style="opacity:${index < skill.strength ? 1 : 0.2}"></span></div>`)
-          .join("")}
-      </div>
-      <div class="skill-card__links">
-        ${skill.artifacts.map((artifact) => `<span>• ${artifact}</span>`).join("")}
-      </div>
+    if (skillsFocusHeat) {
+      skillsFocusHeat.style.setProperty("--hue", skill.hue ?? 190);
+      skillsFocusHeat.innerHTML = Array.from({ length: 5 })
+        .map((_, index) => `
+          <span class="skills__heat-bar${index < skill.strength ? " skills__heat-bar--active" : ""}"></span>
+        `)
+        .join("");
+      skillsFocusHeat.dataset.strength = String(skill.strength);
+    }
+    if (skillsFocusCta) {
+      if (skill.target) {
+        skillsFocusCta.disabled = false;
+        skillsFocusCta.dataset.target = skill.target;
+      } else {
+        skillsFocusCta.disabled = true;
+        delete skillsFocusCta.dataset.target;
+      }
+    }
+    if (!silent) {
+      pushNarration("skills.focus", {
+        label: skill.name,
+        strength: skill.strength,
+        context: "Skill Gallery",
+      });
+      audioManager?.playEffect("focus");
+    }
+  };
+
+  const setActiveSkill = (skill, options = {}) => {
+    if (!skill) return;
+    if (activeSkill?.id === skill.id && !options.force) return;
+    cardMap.forEach((element, id) => {
+      element.classList.toggle("skill-card--active", id === skill.id);
+    });
+    legendMap.forEach((element, id) => {
+      element.classList.toggle("skills__legend-item--active", id === skill.id);
+    });
+    updateFocus(skill, options);
+  };
+
+  const handleFocus = (skill) => () => {
+    clearTimeout(resumeTimeout);
+    autoRotate = false;
+    setActiveSkill(skill);
+    alignToSkill(skill);
+  };
+
+  const handleBlur = () => {
+    clearTimeout(resumeTimeout);
+    if (reduceMotion) return;
+    resumeTimeout = window.setTimeout(() => {
+      autoRotate = true;
+    }, 3600);
+  };
+
+  skills.forEach((skill, index) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "skill-card";
+    button.dataset.id = skill.id;
+    button.setAttribute("role", "listitem");
+    button.setAttribute("aria-label", `${skill.name} hologram`);
+    button.style.setProperty("--index", index);
+    button.style.setProperty("--total", total);
+    button.style.setProperty("--hue", skill.hue ?? 200);
+    button.innerHTML = `
+      <span class="skill-card__signal">${skill.signal}</span>
+      <span class="skill-card__name">${skill.name}</span>
+      <span class="skill-card__pulse" aria-hidden="true"></span>
     `;
+    button.addEventListener("mouseenter", handleFocus(skill));
+    button.addEventListener("focus", handleFocus(skill));
+    button.addEventListener("mouseleave", handleBlur);
+    button.addEventListener("blur", handleBlur);
     if (skill.target) {
-      card.addEventListener("keydown", (event) => {
+      button.addEventListener("click", () => {
+        const destination = select(skill.target);
+        destination?.scrollIntoView({ behavior: "smooth", block: "start" });
+        pushNarration("skills.jump", { label: skill.name, context: "Skill Gallery" });
+      });
+      button.addEventListener("keydown", (event) => {
         if (event.key !== "Enter" && event.key !== " ") return;
         event.preventDefault();
         const destination = select(skill.target);
         destination?.scrollIntoView({ behavior: "smooth", block: "start" });
         pushNarration("skills.jump", { label: skill.name, context: "Skill Gallery" });
       });
-      card.addEventListener("click", () => {
-        const destination = select(skill.target);
-        destination?.scrollIntoView({ behavior: "smooth", block: "start" });
-        pushNarration("skills.jump", { label: skill.name, context: "Skill Gallery" });
-      });
     }
-    carousel.appendChild(card);
+    skillsRing.appendChild(button);
+    cardMap.set(skill.id, button);
+
+    if (skillsLegend) {
+      const legendItem = document.createElement("button");
+      legendItem.type = "button";
+      legendItem.className = "skills__legend-item";
+      legendItem.setAttribute("role", "listitem");
+      legendItem.innerHTML = `
+        <span class="skills__legend-swatch" style="--hue: ${skill.hue ?? 200}"></span>
+        <span>
+          <strong>${skill.name}</strong>
+          <em>${skill.signal}</em>
+        </span>
+      `;
+      legendItem.addEventListener("click", () => {
+        setActiveSkill(skill);
+        alignToSkill(skill);
+        autoRotate = false;
+      });
+      legendItem.addEventListener("focus", () => {
+        setActiveSkill(skill);
+        alignToSkill(skill);
+        autoRotate = false;
+      });
+      legendItem.addEventListener("blur", handleBlur);
+      skillsLegend.appendChild(legendItem);
+      legendMap.set(skill.id, legendItem);
+    }
+  });
+
+  if (skillsHalo) {
+    skillsHalo.style.setProperty("--tilt-x", "0deg");
+    skillsHalo.style.setProperty("--tilt-y", "0deg");
+    skillsHalo.addEventListener("pointermove", (event) => {
+      const rect = skillsHalo.getBoundingClientRect();
+      const offsetX = (event.clientX - rect.left) / rect.width - 0.5;
+      const offsetY = (event.clientY - rect.top) / rect.height - 0.5;
+      skillsHalo.style.setProperty("--tilt-x", `${offsetY * -14}deg`);
+      skillsHalo.style.setProperty("--tilt-y", `${offsetX * 18}deg`);
+    });
+    skillsHalo.addEventListener("pointerleave", () => {
+      skillsHalo.style.setProperty("--tilt-x", "0deg");
+      skillsHalo.style.setProperty("--tilt-y", "0deg");
+    });
+  }
+
+  if (skillsFocusCta) {
+    skillsFocusCta.addEventListener("click", () => {
+      if (!activeSkill?.target) return;
+      const destination = select(activeSkill.target);
+      destination?.scrollIntoView({ behavior: "smooth", block: "start" });
+      pushNarration("skills.jump", { label: activeSkill.name, context: "Skill Gallery" });
+    });
+  }
+
+  setActiveSkill(skills[0], { silent: true, force: true });
+  alignToSkill(skills[0] ?? null);
+
+  const animate = () => {
+    if (autoRotate && !reduceMotion) {
+      setRotation(rotation + 0.08);
+    }
+    raf = requestAnimationFrame(animate);
+  };
+
+  animate();
+
+  if (reduceMotion) {
+    skillsRing.classList.add("skills__ring--static");
+  }
+
+  motionQuery.addEventListener("change", (event) => {
+    reduceMotion = event.matches;
+    autoRotate = !reduceMotion;
+    skillsRing.classList.toggle("skills__ring--static", reduceMotion);
+  });
+
+  window.addEventListener("beforeunload", () => {
+    cancelAnimationFrame(raf);
+    clearTimeout(resumeTimeout);
   });
 }
 
 function renderImpact() {
   const grid = select("#impact-grid");
   const chips = selectAll("[data-impact-filter]");
+  if (!grid) return;
 
-  function update(filter) {
+  const gaugeMap = new Map();
+  const trendMap = new Map();
+  let activeFilter = "all";
+
+  const filterLabels = {
+    all: "All Signals",
+    regions: "Regions Bank",
+    duke: "Duke Energy",
+    automation: "Automation",
+  };
+
+  const highlightMilestones = (filter) => {
+    if (!impactMilestones) return;
+    Array.from(impactMilestones.children).forEach((child) => {
+      const tags = child.dataset.tags?.split(",") ?? [];
+      const isActive = filter === "all" || tags.includes(filter);
+      child.classList.toggle("impact-milestone--active", isActive);
+    });
+  };
+
+  const announceFilter = (filter) => {
+    const label = filterLabels[filter] ?? "Impact";
+    pushNarration("impact.filter", { label, context: "Impact Command" });
+    audioManager?.playEffect("focus");
+  };
+
+  const buildSparkline = (trend) => {
+    const width = 220;
+    const height = 80;
+    const padding = 14;
+    const max = Math.max(...trend.values);
+    const min = Math.min(...trend.values);
+    const span = max - min || 1;
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+    svg.setAttribute("preserveAspectRatio", "none");
+
+    const gradientId = `impact-gradient-${trend.id}`;
+    const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+    const gradient = document.createElementNS("http://www.w3.org/2000/svg", "linearGradient");
+    gradient.setAttribute("id", gradientId);
+    gradient.setAttribute("x1", "0%");
+    gradient.setAttribute("x2", "0%");
+    gradient.setAttribute("y1", "0%");
+    gradient.setAttribute("y2", "100%");
+    const stopTop = document.createElementNS("http://www.w3.org/2000/svg", "stop");
+    stopTop.setAttribute("offset", "0%");
+    stopTop.setAttribute("stop-color", trend.color);
+    stopTop.setAttribute("stop-opacity", "0.45");
+    const stopBottom = document.createElementNS("http://www.w3.org/2000/svg", "stop");
+    stopBottom.setAttribute("offset", "100%");
+    stopBottom.setAttribute("stop-color", trend.color);
+    stopBottom.setAttribute("stop-opacity", "0.05");
+    gradient.append(stopTop, stopBottom);
+    defs.appendChild(gradient);
+    svg.appendChild(defs);
+
+    const toPoint = (value, index) => {
+      const ratio = trend.values.length > 1 ? index / (trend.values.length - 1) : 0;
+      const x = padding + ratio * (width - padding * 2);
+      const normalized = trend.invert ? (value - min) / span : (max - value) / span;
+      const y = padding + normalized * (height - padding * 2);
+      return { x, y };
+    };
+
+    const points = trend.values.map(toPoint);
+    const pathData = points
+      .map((point, index) => `${index === 0 ? "M" : "L"}${point.x.toFixed(2)} ${point.y.toFixed(2)}`)
+      .join(" ");
+
+    const line = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    line.setAttribute("d", pathData);
+    line.setAttribute("fill", "none");
+    line.setAttribute("stroke", trend.color);
+    line.setAttribute("stroke-width", "2.4");
+    line.setAttribute("stroke-linecap", "round");
+
+    const area = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    const areaData = `${pathData} L${points[points.length - 1].x.toFixed(2)} ${height - padding} L${points[0].x.toFixed(
+      2
+    )} ${height - padding} Z`;
+    area.setAttribute("d", areaData);
+    area.setAttribute("fill", `url(#${gradientId})`);
+    area.setAttribute("stroke", "none");
+
+    svg.append(area, line);
+    return svg;
+  };
+
+  const highlightGauge = (gauge) => {
+    gaugeMap.forEach((element, id) => {
+      element.classList.toggle("impact-gauge--active", id === gauge.id);
+    });
+    pushNarration("impact.metric", {
+      label: gauge.label,
+      value: gauge.value,
+      unit: gauge.unit,
+      context: "Impact Command",
+    });
+    audioManager?.playEffect("focus");
+  };
+
+  const highlightTrend = (trend) => {
+    trendMap.forEach((element, id) => {
+      element.classList.toggle("impact-trend--active", id === trend.id);
+    });
+    const latest = trend.values[trend.values.length - 1];
+    pushNarration("impact.metric", {
+      label: trend.label,
+      value: latest,
+      unit: trend.unit,
+      context: "Impact Command",
+    });
+    audioManager?.playEffect("focus");
+  };
+
+  if (impactOverview) {
+    impactOverview.innerHTML = "";
+    impactTelemetry.gauges.forEach((gauge) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "impact-gauge";
+      button.dataset.id = gauge.id;
+      button.setAttribute("role", "listitem");
+      button.innerHTML = `
+        <span class="impact-gauge__dial" style="--color: ${gauge.color}">
+          <span class="impact-gauge__fill" aria-hidden="true"></span>
+          <span class="impact-gauge__value">${gauge.value}${gauge.unit}</span>
+        </span>
+        <span class="impact-gauge__text">
+          <strong>${gauge.label}</strong>
+          <em>${gauge.detail}</em>
+        </span>
+      `;
+      button.addEventListener("mouseenter", () => highlightGauge(gauge));
+      button.addEventListener("focus", () => highlightGauge(gauge));
+      impactOverview.appendChild(button);
+      gaugeMap.set(gauge.id, button);
+      requestAnimationFrame(() => {
+        button.style.setProperty("--progress", gauge.value / 100);
+      });
+    });
+    const primaryGauge = impactTelemetry.gauges[0];
+    if (primaryGauge) {
+      const element = gaugeMap.get(primaryGauge.id);
+      element?.classList.add("impact-gauge--active");
+    }
+  }
+
+  if (impactTrends) {
+    impactTrends.innerHTML = "";
+    impactTelemetry.trends.forEach((trend) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "impact-trend";
+      button.dataset.id = trend.id;
+      button.setAttribute("role", "listitem");
+      const start = trend.values[0];
+      const latest = trend.values[trend.values.length - 1];
+      button.innerHTML = `
+        <span class="impact-trend__chart" aria-hidden="true"></span>
+        <span class="impact-trend__meta">
+          <strong>${trend.label}</strong>
+          <em>${trend.detail}</em>
+          <span class="impact-trend__range"><span>${start}${trend.unit}</span><span>${latest}${trend.unit}</span></span>
+        </span>
+      `;
+      const chartHost = button.querySelector(".impact-trend__chart");
+      chartHost.appendChild(buildSparkline(trend));
+      button.addEventListener("mouseenter", () => highlightTrend(trend));
+      button.addEventListener("focus", () => highlightTrend(trend));
+      impactTrends.appendChild(button);
+      trendMap.set(trend.id, button);
+    });
+    const primaryTrend = impactTelemetry.trends[0];
+    if (primaryTrend) {
+      trendMap.get(primaryTrend.id)?.classList.add("impact-trend--active");
+    }
+  }
+
+  if (impactMilestones) {
+    impactMilestones.innerHTML = "";
+    impactTelemetry.milestones.forEach((milestone) => {
+      const item = document.createElement("article");
+      item.className = "impact-milestone";
+      item.dataset.tags = milestone.tags.join(",");
+      item.setAttribute("role", "listitem");
+      item.innerHTML = `
+        <h3>${milestone.label}</h3>
+        <p>${milestone.detail}</p>
+      `;
+      impactMilestones.appendChild(item);
+    });
+  }
+
+  const updateGrid = (filter) => {
     grid.innerHTML = "";
     impactSignals
       .filter((signal) => filter === "all" || signal.tags.includes(filter))
@@ -1633,17 +2017,24 @@ function renderImpact() {
         `;
         grid.appendChild(card);
       });
-  }
+    highlightMilestones(filter);
+  };
 
-  chips.forEach((chip) =>
+  chips.forEach((chip) => {
     chip.addEventListener("click", () => {
       chips.forEach((btn) => btn.classList.toggle("chip--active", btn === chip));
       chips.forEach((btn) => btn.setAttribute("aria-selected", btn === chip ? "true" : "false"));
-      update(chip.dataset.impactFilter);
-    })
-  );
+      const filter = chip.dataset.impactFilter ?? "all";
+      updateGrid(filter);
+      if (filter !== activeFilter) {
+        announceFilter(filter);
+        activeFilter = filter;
+      }
+    });
+  });
 
-  update("all");
+  updateGrid(activeFilter);
+  highlightMilestones(activeFilter);
 }
 
 function renderBattleCard() {

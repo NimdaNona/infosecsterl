@@ -107,36 +107,57 @@
 .skill-card::before {
   content: "";
   position: absolute;
-  inset: -40% -30% 40% -30%;
-  background: radial-gradient(circle, rgba(102, 163, 255, 0.2), transparent 70%);
+  inset: -30% -20% 40% -20%;
+  background: radial-gradient(circle at 50% 20%, hsla(var(--hue), 95%, 70%, 0.22), transparent 70%);
   opacity: 0;
   transition: opacity var(--transition-slow);
+  pointer-events: none;
 }
 
 .skill-card:hover::before,
-.skill-card:focus-within::before {
+.skill-card:focus-visible::before,
+.skill-card--active::before {
   opacity: 1;
 }
 
-.skill-card__heatmap {
-  display: flex;
-  gap: 0.35rem;
+.skill-card__pulse {
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, hsla(var(--hue), 95%, 70%, 0.7), transparent);
+  border-radius: 999px;
+  transform: translateZ(40px);
+  animation: skillPulse 4.2s ease-in-out infinite;
 }
 
-.heatmap-bar {
+@keyframes skillPulse {
+  0% {
+    opacity: 0;
+    transform: translateZ(40px) scaleX(0.3);
+  }
+  50% {
+    opacity: 1;
+    transform: translateZ(40px) scaleX(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateZ(40px) scaleX(0.3);
+  }
+}
+
+.skills__focus-heat {
+  display: flex;
+  gap: 0.45rem;
+}
+
+.skills__heat-bar {
   flex: 1;
   height: 8px;
   border-radius: 999px;
-  background: rgba(126, 255, 245, 0.2);
-  overflow: hidden;
-  position: relative;
+  background: rgba(126, 255, 245, 0.18);
 }
 
-.heatmap-bar span {
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: linear-gradient(90deg, rgba(126, 255, 245, 0.85), rgba(102, 163, 255, 0.6));
+.skills__heat-bar--active {
+  background: linear-gradient(90deg, hsla(var(--hue), 95%, 72%, 0.8), hsla(var(--hue), 95%, 58%, 0.45));
 }
 
 .impact-card__value {

@@ -310,9 +310,18 @@
             <h2 id="skills-title">Skill Hologram Gallery</h2>
             <p>Orbit Sterling's core competencies and drop into the evidence of mastery.</p>
           </div>
-          <div class="skills__carousel" role="list">
-            <!-- Skill cards injected via JS -->
+          <div class="skills__halo" id="skills-halo">
+            <div class="skills__ring" id="skills-ring" role="list"></div>
+            <article class="skills__focus" id="skills-focus" aria-live="polite">
+              <p class="skills__focus-signal" id="skills-focus-signal"></p>
+              <h3 class="skills__focus-title" id="skills-focus-title"></h3>
+              <p class="skills__focus-description" id="skills-focus-description"></p>
+              <div class="skills__focus-heat" id="skills-focus-heat" aria-hidden="true"></div>
+              <ul class="skills__focus-artifacts" id="skills-focus-artifacts"></ul>
+              <button class="chip chip--small" id="skills-focus-cta" type="button">View mission evidence</button>
+            </article>
           </div>
+          <div class="skills__legend" id="skills-legend" role="list"></div>
         </section>
 
         <section id="impact" class="section impact" aria-labelledby="impact-title">
@@ -320,6 +329,8 @@
             <h2 id="impact-title">Impact Command Center</h2>
             <p>Quantify the measurable outcomes across missions. Filter signals to align with your priorities.</p>
           </div>
+          <div class="impact__overview" id="impact-overview" role="list"></div>
+          <div class="impact__trends" id="impact-trends" role="list"></div>
           <div class="impact__controls" role="tablist" aria-label="Impact filters">
             <button class="chip chip--active" data-impact-filter="all" role="tab" aria-selected="true">All</button>
             <button class="chip" data-impact-filter="regions" role="tab">Regions Bank</button>
@@ -327,6 +338,7 @@
             <button class="chip" data-impact-filter="automation" role="tab">Automation</button>
           </div>
           <div class="impact__grid" id="impact-grid" role="tabpanel"></div>
+          <div class="impact__milestones" id="impact-milestones" role="list"></div>
         </section>
 
         <section id="deploy" class="section deploy" aria-labelledby="deploy-title">

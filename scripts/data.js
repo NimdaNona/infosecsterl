@@ -558,6 +558,21 @@ export const narrationEntries = [
     label: "Skill Gallery",
     text: "Routing to mission evidence for {{label}} competency.",
   },
+  {
+    id: "skills.focus",
+    label: "Skill Gallery",
+    text: "Hologram locked on {{label}} capability. Signal strength registering at {{strength}} out of 5.",
+  },
+  {
+    id: "impact.metric",
+    label: "Impact Command",
+    text: "Telemetry feed: {{label}} registering {{value}} {{unit}}.",
+  },
+  {
+    id: "impact.filter",
+    label: "Impact Command",
+    text: "Impact grid filtered to {{label}} vantage.",
+  },
 ];
 
 export const hunts = [
@@ -1142,6 +1157,7 @@ export const skills = [
     id: "incident-command",
     name: "Incident Command & Strategy",
     signal: "Regions Bank",
+    hue: 186,
     target: "#regions-bank",
     description:
       "Directed enterprise-wide command structure for high-impact incidents with live executive telemetry and decision frameworks.",
@@ -1156,6 +1172,7 @@ export const skills = [
     id: "threat-hunting",
     name: "Threat Hunting & Analytics",
     signal: "Duke Energy",
+    hue: 305,
     target: "#duke-energy",
     description:
       "Engineered hypothesis-driven hunts across outbound protocols, LOLBins, and stealth C2 traffic to reveal hidden adversaries.",
@@ -1170,6 +1187,7 @@ export const skills = [
     id: "automation",
     name: "Automation & Orchestration",
     signal: "Duke Energy",
+    hue: 248,
     target: "#duke-energy",
     description:
       "Built automation pipelines for case enrichment, routing, and collaboration that accelerated MTTR and reduced analyst toil.",
@@ -1184,6 +1202,7 @@ export const skills = [
     id: "attack-surface",
     name: "Attack Surface Management",
     signal: "Regions Bank",
+    hue: 210,
     target: "#regions-bank",
     description:
       "Unified asset intelligence, prioritized remediation, and aligned risk heatmaps to critical banking services.",
@@ -1198,6 +1217,7 @@ export const skills = [
     id: "stakeholder-communication",
     name: "Stakeholder Communication",
     signal: "Cross-Mission",
+    hue: 38,
     target: "#impact",
     description:
       "Crafted mission-ready comms bridging technical depth and executive clarity under high pressure.",
@@ -1260,6 +1280,74 @@ export const impactSignals = [
     tags: ["regions", "automation"],
   },
 ];
+
+export const impactTelemetry = {
+  gauges: [
+    {
+      id: "surface-coverage",
+      label: "Surface Coverage",
+      value: 92,
+      unit: "%",
+      detail: "Critical assets instrumented across Regions Bank crown jewels.",
+      color: "#5CF2FF",
+    },
+    {
+      id: "automation-throughput",
+      label: "Automation Throughput",
+      value: 68,
+      unit: "%",
+      detail: "Priority incidents auto-enriched and routed without analyst touch.",
+      color: "#FF7ADB",
+    },
+    {
+      id: "executive-confidence",
+      label: "Executive Confidence",
+      value: 88,
+      unit: "%",
+      detail: "Leadership satisfaction rating following Regions and Duke escalations.",
+      color: "#7BFF9E",
+    },
+  ],
+  trends: [
+    {
+      id: "mttr-trend",
+      label: "Incident MTTR",
+      values: [76, 65, 58, 47],
+      unit: "min",
+      detail: "Command orchestration collapsed closure times during high-severity events.",
+      color: "#5CF2FF",
+    },
+    {
+      id: "noise-trend",
+      label: "Alert Noise",
+      values: [100, 86, 72, 58],
+      unit: "%",
+      detail: "Automation removed redundant noise, letting analysts prioritize material risk.",
+      color: "#FF7ADB",
+      invert: true,
+    },
+  ],
+  milestones: [
+    {
+      id: "regions-milestone",
+      label: "Regions Command",
+      detail: "Financial operations shielded through orchestrated command bridge and telemetry instrumentation.",
+      tags: ["regions"],
+    },
+    {
+      id: "duke-milestone",
+      label: "Duke Hunts",
+      detail: "Tier-0 hunts exposed outbound abuse, fueling new detections and firewall enforcement.",
+      tags: ["duke"],
+    },
+    {
+      id: "automation-milestone",
+      label: "Automation Pipeline",
+      detail: "Adaptive routing and enrichment reclaimed 480 analyst hours and raised collaboration fidelity.",
+      tags: ["automation", "regions", "duke"],
+    },
+  ],
+};
 
 export const automationTickets = [
   {
