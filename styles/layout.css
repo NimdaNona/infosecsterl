@@ -961,6 +961,7 @@
 
 .surface-details,
 .loop__details,
+.loop__achievements,
 .automation-stats {
   background: rgba(6, 9, 22, 0.85);
   border: 1px solid rgba(126, 255, 245, 0.15);
@@ -1076,6 +1077,13 @@
   gap: 0.75rem;
 }
 
+.loop__meta {
+  display: grid;
+  gap: 0.9rem;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  align-items: start;
+}
+
 .loop__segment {
   border: 1px solid rgba(126, 255, 245, 0.15);
   border-radius: var(--radius-small);
@@ -1093,6 +1101,47 @@
   border-color: rgba(126, 255, 245, 0.4);
   background: linear-gradient(140deg, rgba(126, 255, 245, 0.2), rgba(12, 18, 40, 0.9));
   transform: translateY(-3px);
+}
+
+.loop__achievements {
+  display: grid;
+  gap: 0.75rem;
+  min-height: unset;
+}
+
+.loop__achievements-lede {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.loop__achievements-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.loop__achievement h5 {
+  margin: 0 0 0.35rem 0;
+  font-size: 0.78rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(126, 255, 245, 0.85);
+}
+
+.loop__achievement p {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+@media (max-width: 720px) {
+  .loop__meta {
+    grid-template-columns: 1fr;
+  }
 }
 
 .hunt-console {

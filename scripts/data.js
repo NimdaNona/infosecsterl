@@ -471,6 +471,95 @@ export const loopIntel = {
   },
 };
 
+export const loopAchievements = [
+  {
+    id: "playbook-codex",
+    title: "Playbook Codex Expanded",
+    detail:
+      "Converted retrospectives into six cross-domain playbooks with executive-traceable decision logs.",
+  },
+  {
+    id: "automation-loop",
+    title: "Automation Loop Fueled",
+    detail:
+      "Fed improvement backlog into orchestration sprints, trimming preparation cycles by 35% and amplifying reuse.",
+  },
+  {
+    id: "readiness-drills",
+    title: "Readiness Drills Elevated",
+    detail:
+      "Scaled simulation cadence and coaching to lift analyst readiness scores 24 points quarter-over-quarter.",
+  },
+];
+
+export const narrationEntries = [
+  {
+    id: "mission.boot",
+    label: "Boot Sequence",
+    text: "Telemetry arrays calibrating. Mission control online.",
+  },
+  {
+    id: "mission.select",
+    label: "Mission Control",
+    text: "Dossier focus shifted to {{label}}. Deploying scenario overlays and stakeholder telemetry.",
+  },
+  {
+    id: "regions.scene",
+    label: "Regions Ops",
+    text: "Incident phase engaged: {{label}}. Command bridge briefing synchronized.",
+  },
+  {
+    id: "regions.deploy",
+    label: "Countermeasures",
+    text: "Countermeasure executed on {{label}}. {{effect}}",
+  },
+  {
+    id: "loop.segment",
+    label: "Improvement Loop",
+    text: "Loop vector engaged: {{label}}. Surface artifacts to capture institutional learning.",
+  },
+  {
+    id: "loop.complete",
+    label: "Improvement Loop",
+    text: "Continuous improvement loop traversed end-to-end. Achievements ready for recruiter review.",
+  },
+  {
+    id: "hunt.activate",
+    label: "Threat Hunt",
+    text: "Threat hunt {{label}} executing. Query playback and telemetry overlays online.",
+  },
+  {
+    id: "hunt.view",
+    label: "Threat Hunt",
+    text: "Context toggled to {{view}} signals for {{label}}.",
+  },
+  {
+    id: "automation.update",
+    label: "Automation",
+    text: "Automation modules active: {{count}}. Projected MTTR {{mttr}}h with {{hours}} analyst hours reclaimed.",
+  },
+  {
+    id: "timeline.complete",
+    label: "Mission Timeline",
+    text: "All mission checkpoints verified. Recommend executing 'battle_card' from the deploy console.",
+  },
+  {
+    id: "deploy.command",
+    label: "Deploy Console",
+    text: "Command acknowledged: {{command}}. Delivering mission response package.",
+  },
+  {
+    id: "deploy.unknown",
+    label: "Deploy Console",
+    text: "Command channel received '{{command}}'. No matching routine available.",
+  },
+  {
+    id: "skills.jump",
+    label: "Skill Gallery",
+    text: "Routing to mission evidence for {{label}} competency.",
+  },
+];
+
 export const hunts = [
   {
     id: "outbound-rdp",

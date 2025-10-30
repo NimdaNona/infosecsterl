@@ -7,12 +7,14 @@ import {
   briefingTimeline,
   surfaceNodes,
   loopIntel,
+  loopAchievements,
   hunts,
   skills,
   impactSignals,
   automationTickets,
   deployCommands,
   battleCardIntel,
+  narrationEntries,
 } from "./data.js";
 import { MissionOrbit } from "./orbit.js";
 import { createAudioManager } from "./audio.js";
@@ -44,10 +46,86 @@ const battleCardDismissButtons = selectAll("[data-battle-card-dismiss]");
 const battleCardTitle = select("#battle-card-title");
 const battleCardSubtitle = select("#battle-card-subtitle");
 const battleCardMeta = select("#battle-card-meta");
+const loopAchievementsContainer = select("#loop-achievements");
+const loopAchievementsLede = select("#loop-achievements-lede");
+const loopAchievementsList = select("#loop-achievements-list");
+const narrationContainer = select("#narration");
+const narrationToggle = select("#narration-toggle");
+const narrationLine = select("#narration-line");
+const narrationContext = select("#narration-context");
+const narrationLog = select("#narration-log");
 
 let audioManager;
 let missionOrbitInstance;
 let battleCardPreviouslyFocused;
+const narrationMap = new Map(narrationEntries.map((entry) => [entry.id, entry]));
+const narrationHistory = [];
+const MAX_NARRATION_ITEMS = 8;
+
+function formatNarration(template = "", values = {}) {
+  return template.replace(/\{\{(.*?)\}\}/g, (_, key) => {
+    const trimmed = key.trim();
+    return Object.prototype.hasOwnProperty.call(values, trimmed) ? values[trimmed] : "";
+  });
+}
+
+function pushNarration(id, values = {}) {
+  if (!narrationContainer || !narrationLine) return;
+  const entry = narrationMap.get(id);
+  if (!entry) return;
+  const text = formatNarration(entry.text, values);
+  const context = values.context ?? entry.label ?? "Narration";
+  narrationContainer.classList.add("narration--active");
+  narrationLine.textContent = text;
+  if (narrationContext) {
+    narrationContext.textContent = context;
+  }
+
+  if (narrationLog) {
+    const li = document.createElement("li");
+    li.className = "narration__item";
+    const timestamp = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    li.innerHTML = `
+      <span class="narration__timestamp">${timestamp}</span>
+      <div class="narration__content">
+        <span class="narration__badge">${context}</span>
+        <p>${text}</p>
+      </div>
+    `;
+    narrationLog.prepend(li);
+    while (narrationLog.children.length > MAX_NARRATION_ITEMS) {
+      narrationLog.removeChild(narrationLog.lastChild);
+    }
+  }
+
+  narrationHistory.push({ id, text, context });
+}
+
+function initNarration() {
+  if (!narrationContainer) return;
+  if (narrationToggle && narrationLog) {
+    narrationToggle.addEventListener("click", () => {
+      const expanded = narrationToggle.getAttribute("aria-expanded") === "true";
+      narrationToggle.setAttribute("aria-expanded", String(!expanded));
+      if (expanded) {
+        narrationLog.setAttribute("hidden", "");
+      } else {
+        narrationLog.removeAttribute("hidden");
+      }
+      narrationContainer.classList.toggle("narration--expanded", !expanded);
+    });
+  }
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    if (!narrationToggle) return;
+    const expanded = narrationToggle.getAttribute("aria-expanded") === "true";
+    if (!expanded) return;
+    narrationToggle.click();
+  });
+
+  pushNarration("mission.boot");
+}
 
 function initStarfield(canvas) {
   if (!canvas) return;
@@ -217,8 +295,15 @@ function renderMissionControl() {
         event.preventDefault();
         const target = select(dossier.target);
         target?.scrollIntoView({ behavior: "smooth", block: "start" });
+        pushNarration("mission.select", { label: dossier.label, context: dossier.label });
         audioManager?.playVoice("mission");
       }
+    });
+    listCard.addEventListener("click", () => {
+      const target = select(dossier.target);
+      target?.scrollIntoView({ behavior: "smooth", block: "start" });
+      pushNarration("mission.select", { label: dossier.label, context: dossier.label });
+      audioManager?.playVoice("mission");
     });
     missionList.appendChild(listCard);
   });
@@ -241,6 +326,7 @@ function renderMissionControl() {
       button.addEventListener("click", () => {
         const target = select(dossier.target);
         target?.scrollIntoView({ behavior: "smooth", block: "start" });
+        pushNarration("mission.select", { label: dossier.label, context: dossier.label });
         audioManager?.playVoice("mission");
       });
       button.addEventListener("keydown", (event) => {
@@ -248,6 +334,7 @@ function renderMissionControl() {
           event.preventDefault();
           const target = select(dossier.target);
           target?.scrollIntoView({ behavior: "smooth", block: "start" });
+          pushNarration("mission.select", { label: dossier.label, context: dossier.label });
           audioManager?.playVoice("mission");
         }
       });
@@ -270,6 +357,7 @@ function renderMissionControl() {
     onSelect: (dossier) => {
       const target = select(dossier.target);
       target?.scrollIntoView({ behavior: "smooth", block: "start" });
+      pushNarration("mission.select", { label: dossier.label, context: dossier.label });
       audioManager?.playVoice("mission");
     },
     onWireframeChange: (enabled) => {
@@ -659,6 +747,8 @@ function renderIncidentMap() {
     if (playback.entries.length > 0) {
       setActiveEntry(0, false);
     }
+
+    pushNarration("regions.scene", { label: scene.label });
   };
 
   function updateDecision(decisionId) {
@@ -905,6 +995,11 @@ function renderSurfaceGrid() {
     audioManager?.playEffect?.("focus");
     highlightNode(nodeId);
     updateDetails(nodeId, { focusDeploy: true });
+    pushNarration("regions.deploy", {
+      label: node.label,
+      effect: node.countermeasure.effect,
+      context: "Countermeasure",
+    });
   }
 
   function updateDetails(nodeId, { focusDeploy = false } = {}) {
@@ -1040,16 +1135,49 @@ function renderSurfaceGrid() {
 function renderLoop() {
   const buttons = selectAll(".loop__segment");
   const details = select("#loop-details");
+  if (loopAchievementsList) {
+    loopAchievementsList.innerHTML = "";
+  }
+  const visited = new Set();
+  let achievementsUnlocked = false;
+
+  function renderAchievements() {
+    if (!loopAchievementsContainer || !loopAchievementsLede) return;
+    const total = buttons.length;
+    const count = visited.size;
+    if (count >= total && !achievementsUnlocked) {
+      achievementsUnlocked = true;
+      if (loopAchievementsList) {
+        loopAchievementsList.innerHTML = loopAchievements
+          .map(
+            (item) => `
+              <li class="loop__achievement">
+                <h5>${item.title}</h5>
+                <p>${item.detail}</p>
+              </li>
+            `
+          )
+          .join("");
+      }
+      loopAchievementsLede.textContent = "Operational achievements unlocked. Review the sustained impact below.";
+      pushNarration("loop.complete", { count: loopAchievements.length, context: "Improvement Loop" });
+    } else if (!achievementsUnlocked) {
+      loopAchievementsLede.textContent = `Progress ${count}/${total} phases to reveal institutional achievements.`;
+    }
+  }
 
   function update(loopKey) {
     const intel = loopIntel[loopKey];
-    if (!intel) return;
+    if (!intel || !details) return;
     buttons.forEach((btn) => btn.classList.toggle("active", btn.dataset.loop === loopKey));
     details.innerHTML = `
       <h4>${intel.title}</h4>
       <p>${intel.summary}</p>
       <ul>${intel.artifacts.map((artifact) => `<li>${artifact}</li>`).join("")}</ul>
     `;
+    visited.add(loopKey);
+    renderAchievements();
+    pushNarration("loop.segment", { label: intel.title, context: "Improvement Loop" });
   }
 
   buttons.forEach((btn) =>
@@ -1058,6 +1186,7 @@ function renderLoop() {
     })
   );
 
+  renderAchievements();
   update("detect");
 }
 
@@ -1289,7 +1418,7 @@ function renderHunts() {
     const heatmap = terminal.querySelector("[data-hunt-heatmap]");
     const packetsPanel = terminal.querySelector("[data-hunt-packets]");
 
-    const renderIntel = (view) => {
+    const renderIntel = (view, announce = true) => {
       const context = view === "baseline" ? hunt.baselines : hunt.anomalies;
       if (intelPanel) {
         intelPanel.innerHTML = `
@@ -1308,6 +1437,10 @@ function renderHunts() {
       drawMatrix(matrix, telemetry?.matrix);
       drawHeatmap(heatmap, telemetry?.heatmap);
       renderPackets(packetsPanel, telemetry?.packets);
+      if (announce) {
+        const viewLabel = view === "baseline" ? "Baseline" : "Anomalous";
+        pushNarration("hunt.view", { label: hunt.name, view: viewLabel, context: "Threat Hunt" });
+      }
     };
 
     toggles.forEach((toggle) =>
@@ -1325,8 +1458,9 @@ function renderHunts() {
       });
     });
 
-    renderIntel("baseline");
+    renderIntel("baseline", false);
     audioManager?.playEffect("effects");
+    pushNarration("hunt.activate", { label: hunt.name, context: "Threat Hunt" });
   }
 
   queue.addEventListener("click", (event) => {
@@ -1423,6 +1557,12 @@ function renderAutomation() {
       <p><strong>Analyst Hours Saved:</strong> ${hoursSaved} per quarter</p>
       <p><strong>Stakeholder Satisfaction:</strong> +${nps} NPS</p>
     `;
+    pushNarration("automation.update", {
+      count: activeModules.length,
+      mttr: mttr.toFixed(1),
+      hours: hoursSaved,
+      context: "Automation",
+    });
   }
 
   toggles.forEach((toggle) => toggle.addEventListener("change", updateStats));
@@ -1460,6 +1600,12 @@ function renderSkills() {
         event.preventDefault();
         const destination = select(skill.target);
         destination?.scrollIntoView({ behavior: "smooth", block: "start" });
+        pushNarration("skills.jump", { label: skill.name, context: "Skill Gallery" });
+      });
+      card.addEventListener("click", () => {
+        const destination = select(skill.target);
+        destination?.scrollIntoView({ behavior: "smooth", block: "start" });
+        pushNarration("skills.jump", { label: skill.name, context: "Skill Gallery" });
       });
     }
     carousel.appendChild(card);
@@ -1788,6 +1934,8 @@ function initTimeline() {
 
   sections[0]?.button?.setAttribute("aria-current", "step");
 
+  let timelineUnlocked = false;
+
   const observer = new IntersectionObserver(
     (entries) => {
       entries.forEach((entry) => {
@@ -1808,6 +1956,10 @@ function initTimeline() {
         timelineIntel.textContent =
           "All dossiers explored. Bonus intel unlocked: run 'battle_card' in the deploy console to open Sterling's battle brief, then 'download_battle_card' to export it.";
         timelineIntel.classList.add("timeline__intel--unlocked");
+        if (!timelineUnlocked) {
+          pushNarration("timeline.complete", { context: "Mission Timeline" });
+          timelineUnlocked = true;
+        }
       }
     },
     { threshold: 0.6 }
@@ -1871,6 +2023,7 @@ function initDeployConsole() {
     const entry = deployCommands[key];
     if (entry) {
       printResponse(entry.response);
+      pushNarration("deploy.command", { command: command.toUpperCase(), context: "Deploy Console" });
       if (key === "battle_card") {
         openBattleCard();
       }
@@ -1880,6 +2033,7 @@ function initDeployConsole() {
       }
     } else {
       printResponse([`Command '${command}' not recognized. Type 'help' for options.`]);
+      pushNarration("deploy.unknown", { command, context: "Deploy Console" });
     }
   }
 
@@ -1981,6 +2135,7 @@ function initFooter() {
 }
 
 function initApp() {
+  initNarration();
   initStarfield(heroCanvas);
   renderMissionControl();
   initSmoothScroll();

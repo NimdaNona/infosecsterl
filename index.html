@@ -208,9 +208,17 @@
                   <button class="loop__segment" data-loop="review">Review</button>
                   <button class="loop__segment" data-loop="improve">Improve</button>
                 </div>
-                <div class="loop__details" id="loop-details">
-                  <h4>Loop Intelligence</h4>
-                  <p>Engage phases to uncover the assets Sterling produced.</p>
+                <div class="loop__meta">
+                  <div class="loop__details" id="loop-details">
+                    <h4>Loop Intelligence</h4>
+                    <p>Engage phases to uncover the assets Sterling produced.</p>
+                  </div>
+                  <aside class="loop__achievements" id="loop-achievements" aria-live="polite">
+                    <p class="loop__achievements-lede" id="loop-achievements-lede">
+                      Progress through each phase to reveal institutional achievements.
+                    </p>
+                    <ul class="loop__achievements-list" id="loop-achievements-list" role="list"></ul>
+                  </aside>
                 </div>
               </div>
               <footer class="simulation__footer">
@@ -338,6 +346,25 @@
           </div>
         </section>
       </main>
+      <section class="narration" id="narration" aria-label="Narration console">
+        <div class="narration__header">
+          <span class="narration__title">Narration Channel</span>
+          <button
+            class="chip chip--small narration__toggle"
+            type="button"
+            id="narration-toggle"
+            aria-expanded="false"
+            aria-controls="narration-log"
+          >
+            Transcript
+          </button>
+        </div>
+        <div class="narration__live" role="status" aria-live="polite">
+          <span class="narration__context" id="narration-context"></span>
+          <p class="narration__line" id="narration-line"></p>
+        </div>
+        <ol class="narration__log" id="narration-log" hidden></ol>
+      </section>
       <div id="battle-card" class="battle-card" hidden aria-hidden="true">
         <button
           class="battle-card__backdrop"

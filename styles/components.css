@@ -509,6 +509,130 @@
   color: var(--accent-secondary);
 }
 
+.narration {
+  position: fixed;
+  bottom: 1.5rem;
+  left: 1.5rem;
+  width: min(340px, 90vw);
+  background: rgba(5, 8, 20, 0.88);
+  border: 1px solid rgba(126, 255, 245, 0.2);
+  border-radius: var(--radius-medium);
+  padding: 1rem 1.1rem;
+  display: grid;
+  gap: 0.75rem;
+  box-shadow: 0 22px 48px rgba(3, 4, 12, 0.55);
+  backdrop-filter: blur(14px);
+  z-index: 70;
+  opacity: 0;
+  transform: translateY(0.4rem);
+  pointer-events: none;
+  transition: opacity var(--transition-slow), transform var(--transition-slow);
+}
+
+.narration--active {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.narration__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.narration__title {
+  font-size: 0.68rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(126, 255, 245, 0.85);
+}
+
+.narration__toggle {
+  background: rgba(9, 14, 32, 0.85);
+}
+
+.narration--expanded .narration__toggle {
+  background: rgba(126, 255, 245, 0.15);
+  color: var(--accent-primary);
+}
+
+.narration__live {
+  display: grid;
+  gap: 0.35rem;
+  min-height: 62px;
+}
+
+.narration__context {
+  font-size: 0.72rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(126, 255, 245, 0.75);
+}
+
+.narration__line {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+
+.narration__log {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 0.65rem;
+  max-height: 240px;
+  overflow-y: auto;
+  border-top: 1px solid rgba(126, 255, 245, 0.18);
+  padding-top: 0.75rem;
+}
+
+.narration__log[hidden] {
+  display: none;
+}
+
+.narration__item {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.narration__timestamp {
+  font-size: 0.65rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(126, 255, 245, 0.45);
+}
+
+.narration__content {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.narration__badge {
+  font-size: 0.7rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(255, 122, 203, 0.8);
+}
+
+.narration__content p {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+@media (max-width: 960px) {
+  .narration {
+    position: static;
+    width: auto;
+    margin: 1.5rem 1rem;
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
 @media (max-width: 720px) {
   .battle-card__header {
     grid-template-columns: 1fr;
