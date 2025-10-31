@@ -1,33 +1,37 @@
-# Sterling Mission Command Experience
+# Sterling Mission Command
 
-An immersive, single-page cyber operations experience designed to showcase Sterling Thompson's impact across Regions Bank and Duke Energy. The interface simulates mission control, interactive incident response, threat hunting, automation workflows, and a deployment console for recruiters.
+Immersive, Next.js-powered command center showcasing Sterling Thompson's incident leadership, threat hunting, and automation impact across Regions Bank and Duke Energy.
+
+## Tech stack
+- [Next.js 14](https://nextjs.org/) with the app router
+- TypeScript, Tailwind CSS, Framer Motion
+- react-three-fiber + drei for real-time mission orbit rendering
+- Zustand for telemetry, audio, and mission state
 
 ## Getting started
 
-The project is implemented as a static web experience. To preview locally, open `index.html` in any modern browser. For deeper interactivity (audio, canvas effects), ensure JavaScript is enabled.
+```bash
+pnpm install
+pnpm dev
+```
 
-## Features
+The site boots at `http://localhost:3000`.
 
-- **Cinematic landing** with animated starfield, dynamic counters, and HUD telemetry.
-- **Mission Control hub** with an orbital dossier navigator, kinetic cursor, and keyboard-accessible wireframe schematics toggle.
-- **Regions Bank simulations** including live incident orchestration, attack surface intelligence mesh, and continuous improvement loop explorer.
-- **Interactive attack-surface countermeasures** letting visitors deploy Sterling's remediation waves, visualize risk links, and watch residual risk fall in real time.
-- **Continuous improvement achievements** that unlock once every loop vector is explored, providing executive-ready highlights for recruiters.
-- **Executive brief timeline** chronicling leadership updates across the Regions Bank escalation with expandable highlights.
-- **Duke Energy simulations** covering tier-0 threat hunts with MITRE ATT&CK overlays, EDR tuning lab, and automation workflow conveyor.
-- **Threat hunt intel toggles** contrasting baseline behavior vs. suspicious indicators for each hunt scenario.
-- **Adaptive hunt terminal** that replays Splunk/EDR queries with a typewriter effect and honors reduced-motion preferences.
-- **Narration console** delivering synthesized mission callouts, transcripts, and contextual guidance synchronized with user actions.
-- **Skill hologram gallery** with a 3D orbital carousel, live mission focus console, and magnetic tilt interactions that spotlight mastery evidence.
-- **Interactive skill orbit** letting reviewers jump directly to the mission sections that evidence each competency.
-- **Impact command center** featuring dynamic gauges, sparklines, and milestone dossiers that filter alongside the outcome grid and mission timeline ribbon.
-- **Deployment console CTA** mimicking a secure terminal for next-step engagement, complete with a `battle_card` quick-brief command.
-- **Battle card overlay & export** delivering an on-screen executive briefing with an accessible `download_battle_card` HTML export instead of binary assets.
+### Useful scripts
+- `pnpm build` – production build
+- `pnpm start` – run built app
+- `pnpm lint` – lint with ESLint
+- `pnpm test` – execute Vitest unit tests (placeholder)
+- `pnpm test:ui` – run Playwright journey tests (placeholder)
 
-## Accessibility & Responsiveness
+## Project structure
+- `app/` – layout + page composition
+- `components/` – HUD, mission, operations, impact, and console components
+- `data/` – typed narrative + telemetry datasets powering interactions
+- `lib/` – global Zustand store and audio hooks
 
-The layout includes keyboard-focusable controls, live orbit hints, reduced-motion friendly animations (starfield + hunt playback), and responsive behavior for tablets and mobile devices. Audio can be toggled via the HUD sound control.
+## Accessibility & reduced motion
+The HUD honors `prefers-reduced-motion` and disables the procedural audio bed when visitors opt out. Mission selections unlock the timeline and narration console with ARIA-friendly copy.
 
 ## Deployment
-
-Host the repository on any static hosting provider (e.g., Vercel, Netlify, GitHub Pages). Ensure `index.html`, the `styles/`, `scripts/`, and `assets/` directories are served together.
+The project targets Vercel. Build with `pnpm build` and deploy the `.next` output. Analytics instrumentation hooks can be layered via Vercel Analytics or PostHog.
