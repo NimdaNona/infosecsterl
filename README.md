@@ -1,4 +1,4 @@
-# Sterling Mission Command
+# Sterling Mission Command 
 
 Immersive, Next.js-powered command center showcasing Sterling Thompson's incident leadership, threat hunting, and automation impact across Regions Bank and Duke Energy.
 
